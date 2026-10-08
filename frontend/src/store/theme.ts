@@ -19,7 +19,7 @@ export const THEME_MODE_OPTIONS: ReadonlyArray<{ value: ThemeMode, label: string
 ]
 
 export const THEME_BRAND_OPTIONS: ReadonlyArray<{ value: ThemeBrand, label: string }> = [
-  { value: 'default', label: '武协绿' },
+  { value: 'default', label: '公益红' },
   { value: 'blue', label: '商务蓝' },
 ]
 
@@ -36,7 +36,7 @@ export const useThemeStore = defineStore(
   () => {
     /** 用户选择的外观模式，默认浅色 */
     const mode = ref<ThemeMode>('light')
-    /** 品牌主题，默认武协绿 */
+    /** 品牌主题，默认公益红 */
     const brand = ref<ThemeBrand>('default')
     /** 系统当前深浅色；不支持读取的平台恒为 light */
     const systemMode = ref<'light' | 'dark'>('light')

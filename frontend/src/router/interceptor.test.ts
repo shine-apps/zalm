@@ -19,8 +19,23 @@ async function invoke(url: string, roles?: string[]) {
   return navigateToInterceptor.invoke({ url })
 }
 
-// 用真实的 tabbar 配置跑：其中 'pages/about/about' 配了 roles: ['admin']
+// 众爱联盟总台改版后，真实 tabbar 配置里四个 tab（首页/活动/关于/我的）均对所有人开放。
+// 这里 mock 一份保留单个 admin 受限 tab（关于）的配置，用于验证拦截机制本身；
+// 顺序与真实配置一致，仅给「关于」挂 roles，首个可见项仍是首页。
 describe('navigateToInterceptor 角色守卫', () => {
+  beforeEach(() => {
+    vi.doMock('@/tabbar/config', () => ({
+      TABBAR_STRATEGY_MAP: { NO_TABBAR: 0, NATIVE_TABBAR: 1, CUSTOM_TABBAR: 2 },
+      selectedTabbarStrategy: 2,
+      tabbarList: [
+        { text: '首页', pagePath: 'pages/index/index', iconType: 'unocss', icon: 'i-carbon-home' },
+        { text: '活动', pagePath: 'pages/activity/activity', iconType: 'unocss', icon: 'i-carbon-calendar' },
+        { text: '关于', pagePath: 'pages/about/about', iconType: 'unocss', icon: 'i-carbon-information', roles: ['admin'] },
+        { text: '我的', pagePath: 'pages/me/me', iconType: 'unocss', icon: 'i-carbon-user' },
+      ],
+    }))
+  })
+
   it('角色不足时阻止进入受限 tabbar 页，并回退到可见的 tabbar 页', async () => {
     const result = await invoke('/pages/about/about')
 
@@ -61,6 +76,24 @@ describe('navigateToInterceptor 角色守卫', () => {
   it('url 为 undefined 时直接返回，不做任何跳转', async () => {
     await invoke(undefined as unknown as string)
 
+    expect(uni.reLaunch).not.toHaveBeenCalled()
+  })
+})
+
+// 不 mock 配置：使用真实 tabbar 配置，守护众爱联盟总台「四个 tab 对所有人可见」的需求
+describe('navigateToInterceptor 总台四 tab 对游客公开', () => {
+  // 上一个 describe 用 vi.doMock 注册的 config mock 不会随 resetModules 消失，这里显式解除，
+  // 确保本组用例跑的是真实 tabbar 配置
+  beforeEach(() => {
+    vi.doUnmock('@/tabbar/config')
+  })
+
+  it('游客可进入关于页与活动页，不触发重定向', async () => {
+    const about = await invoke('/pages/about/about')
+    expect(about).not.toBe(false)
+
+    const activity = await invoke('/pages/activity/activity')
+    expect(activity).not.toBe(false)
     expect(uni.reLaunch).not.toHaveBeenCalled()
   })
 })

@@ -3,7 +3,7 @@
  *
  * 两条正交轴：
  * 1. 外观模式：theme-light（默认） / theme-dark；mode=auto 时按系统主题解析为二者之一
- * 2. 品牌主题：brand-default（默认武协绿） / brand-blue（商务蓝）
+ * 2. 品牌主题：brand-default（默认公益红） / brand-blue（商务蓝）
  *
  * 挂载方式（跨端）：
  * - H5：class 挂在 <html>（document.documentElement），走 :root.xxx 选择器
@@ -14,45 +14,48 @@
  * 所有颜色只用 hex / 逗号分隔 rgba，避免 oklch 与空格分隔 rgb 在低端机不兼容。
  */
 
-/* —— 默认：浅色模式 + default 品牌（同时作为未挂 class 时的兜底值） —— */
+/* —— 默认：浅色模式 + default 品牌（暖心公益红 + 暖米底色，同时作为未挂 class 时的兜底值） —— */
 :root,
 page {
-  --c-primary: #16a34a;
-  --c-primary-soft: #f0fdf4;
-  --c-primary-soft-text: #15803d;
+  --c-primary: #d14328;
+  --c-primary-soft: #fdece5;
+  --c-primary-soft-text: #b92e17;
+  /* 首页使命 Banner / 品牌徽标用的红色渐变（深色组覆盖为提亮档） */
+  --c-primary-gradient: linear-gradient(135deg, #ef6a45 0%, #d14328 55%, #b92e17 100%);
 
-  --c-page: #f9fafb;
+  --c-page: #faf5f1;
   --c-card: #ffffff;
-  --c-hover: #f3f4f6;
+  --c-hover: #f6ede7;
 
-  --c-ink: #111827;
-  --c-sub: #4b5563;
-  --c-muted: #9ca3af;
+  --c-ink: #2c211c;
+  --c-sub: #6e5b52;
+  --c-muted: #b3a39a;
 
-  --c-line: #f3f4f6;
-  --c-line-strong: #9ca3af;
+  --c-line: #f3e9e2;
+  --c-line-strong: #d8c9c0;
 
   --c-danger: #ef4444;
   --c-danger-soft: #fef2f2;
 }
 
-/* —— 深色模式：只覆盖中性色，品牌主色也调亮以保证深底对比度 —— */
+/* —— 深色模式：暖红调亮、中性色改暖深灰，保证深底对比度 —— */
 :root.theme-dark,
 .theme-dark {
-  --c-primary: #22c55e;
-  --c-primary-soft: #14331f;
-  --c-primary-soft-text: #4ade80;
+  --c-primary: #f0684a;
+  --c-primary-soft: #3a1e18;
+  --c-primary-soft-text: #ff9a80;
+  --c-primary-gradient: linear-gradient(135deg, #f0684a 0%, #d14328 60%, #b03a22 100%);
 
-  --c-page: #0f1115;
-  --c-card: #1a1d24;
-  --c-hover: #232730;
+  --c-page: #17120f;
+  --c-card: #211a16;
+  --c-hover: #2d241f;
 
-  --c-ink: #e7eaf0;
-  --c-sub: #a7adba;
-  --c-muted: #6b7280;
+  --c-ink: #f0e7e1;
+  --c-sub: #b8a89e;
+  --c-muted: #7d6e66;
 
-  --c-line: #2a2f3a;
-  --c-line-strong: #4b5563;
+  --c-line: #332a25;
+  --c-line-strong: #5a4d46;
 
   --c-danger: #f87171;
   --c-danger-soft: #3b1d1d;

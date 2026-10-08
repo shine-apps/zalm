@@ -83,6 +83,20 @@ export default defineConfig({
     'i-carbon-user',
     'i-carbon-ibm-watson-language-translator',
     'i-carbon-menu',
+    // 众爱联盟总台：tabbar / 首页 / 活动 / 关于 中经数据绑定渲染的图标
+    'i-carbon-calendar',
+    'i-carbon-information',
+    'i-carbon-event-schedule',
+    'i-carbon-favorite',
+    'i-carbon-education',
+    'i-carbon-delivery-parcel',
+    'i-carbon-book',
+    'i-carbon-location-heart',
+    'i-carbon-user-multiple',
+    'i-carbon-phone',
+    'i-carbon-email',
+    'i-carbon-location',
+    'i-carbon-chat',
   ],
   rules: [
     [

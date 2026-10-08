@@ -23,6 +23,7 @@ const auth = useAuthStore()
  */
 const PAGE_TITLES: Record<string, string> = {
   '/pages/index/index': '首页',
+  '/pages/activity/activity': '活动',
   '/pages/about/about': '关于',
   '/pages/login/index': '登录',
   '/pages/me/me': '我的',
