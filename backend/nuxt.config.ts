@@ -15,9 +15,9 @@ export default defineNuxtConfig({
     '/': { prerender: true }
   },
 
-  // 后端固定 3000，前端（9000）经 dev proxy 同源访问
+  // 后端固定 9999，前端（3333）经 dev proxy 同源访问
   devServer: {
-    port: 3000
+    port: 9999
   },
 
   compatibilityDate: '2026-06-30',

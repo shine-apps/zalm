@@ -74,7 +74,7 @@
 
 ## 📦 运行（支持热更新）
 
-- web平台： `bun run dev:h5`, 然后打开 [http://localhost:9000/](http://localhost:9000/)。
+- web平台： `bun run dev:h5`, 然后打开 [http://localhost:3333/](http://localhost:3333/)。
 - weixin平台：`bun run dev:mp` 然后打开微信开发者工具，导入本地文件夹，选择本项目的`dist/dev/mp-weixin` 文件。
 - APP平台：`bun run dev:app`, 然后打开 `HBuilderX`，导入刚刚生成的`dist/dev/app` 文件夹，选择运行到模拟器(开发时优先使用)，或者运行的安卓/ios基座。(如果是 `安卓` 和 `鸿蒙` 平台，则不用这个方式，可以把整个unibest项目导入到hbx，通过hbx的菜单来运行到对应的平台。)
 

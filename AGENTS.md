@@ -12,7 +12,7 @@
 
 - 两工程各自拥有 `package.json` / lockfile / 配置，**没有 workspace、没有根 package.json**，不要在根目录执行安装。
 - 认证为 **Better Auth Cookie 单通道**：会话凭证是 HttpOnly Cookie，全链路不出现 token/Authorization 头。
-- 前端 H5 经 vite 代理同源访问后端：`http://localhost:9000/api/**` → `http://localhost:3000/api/**`。
+- 前端 H5 经 vite 代理同源访问后端：`http://localhost:3333/api/**` → `http://localhost:9999/api/**`。
 
 ## 2. 技术栈
 
@@ -86,27 +86,27 @@ bun install
 bun run db:generate   # 仅 schema 变更后需要，生成 drizzle/*.sql
 bun run db:migrate    # 执行迁移
 bun run db:seed       # 幂等：内置 admin/user 角色 + 初始管理员
-bun run dev           # http://localhost:3000
+bun run dev           # http://localhost:9999
 
 # —— 前端（另开终端）——
 cd frontend
 bun install          # 生成 bun.lock；prepare/predev 钩子会生成 src/manifest.json、src/pages.json
-bun run dev:h5       # http://localhost:9000
+bun run dev:h5       # http://localhost:3333
 ```
 
 初始管理员账号不写入本文档；它由 `ADMIN_EMAIL` / `ADMIN_PASSWORD` 经 `bun run db:seed` 创建。
 
 ## 6. 本地联调架构（重要）
 
-- 后端固定 **3000**，前端 H5 固定 **9000**。
+- 后端固定 **9999**，前端 H5 固定 **3333**。
 - `frontend/vite.config.ts` 的 devServer 代理：键 `VITE_APP_PROXY_PREFIX`（默认 `/api`）
-  → 目标 `VITE_SERVER_BASEURL`（`http://localhost:3000`），`changeOrigin: true`，
+  → 目标 `VITE_SERVER_BASEURL`（`http://localhost:9999`），`changeOrigin: true`，
   **不做路径 rewrite**（后端路由本身含 `/api` 前缀，含 Better Auth 的 `/api/auth/*`）。
 - 开关在 `frontend/env/.env.development`：`VITE_APP_PROXY_ENABLE=true`、`VITE_APP_PROXY_PREFIX=/api`。
 - 非 H5 端（小程序/App）没有 vite 代理：`src/http/alova.ts` 用条件编译把 baseURL
   切为 `${VITE_SERVER_BASEURL}/api` 直连（跨域 Cookie 需后端 CORS + 凭证支持）。
 - 后端 `server/middleware/05.cors.ts` 仅对 `TRUSTED_ORIGINS` 中的来源回显具体 Origin，
-  作为前端直连场景的兜底；主链路（9000 代理同源）不触发跨域。
+  作为前端直连场景的兜底；主链路（3333 代理同源）不触发跨域。
 
 ## 7. 后端开发约定
 

@@ -32,7 +32,7 @@ export interface RequestMeta {
   [key: string]: unknown
 }
 
-// H5 端走 vite 同源代理（/api -> http://localhost:3000），相对路径以便浏览器自动携带会话 Cookie；
+// H5 端走 vite 同源代理（/api -> http://localhost:9999），相对路径以便浏览器自动携带会话 Cookie；
 // 非 H5 端（小程序/App）无代理，直连后端基址并补上统一的 /api 前缀。
 let baseURL = '/api'
 // #ifndef H5
