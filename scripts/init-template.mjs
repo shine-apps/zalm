@@ -40,6 +40,7 @@ const TEXT_FILES = [
   'frontend/src/pages/index/index.vue',
   'backend/app/pages/login.vue',
   'backend/app/pages/dashboard.vue',
+  'backend/app/pages/admin/settings.vue',
   'backend/app/layouts/default.vue',
   'backend/app/app.vue',
   'backend/drizzle.config.ts',

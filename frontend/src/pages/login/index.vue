@@ -36,7 +36,7 @@ const tab = ref<LoginTab>('email')
 
 // 邮箱密码
 // 本地联调预填初始管理员账号（生产请勿预填）
-const email = ref('admin@tongxiangwuxie.local')
+const email = ref('admin@zhongailianmeng.local')
 const password = ref('Admin12345')
 const submitting = ref(false)
 
@@ -93,7 +93,7 @@ const agreed = ref(false)
 const AGREEMENTS = {
   terms: {
     title: '用户协议',
-    content: '欢迎使用桐乡武协服务平台。登录即表示您同意使用手机号或邮箱注册账号，并妥善保管账号信息、不得转借他人，您需对账号下的全部行为负责。',
+    content: '欢迎使用众爱联盟服务平台。登录即表示您同意使用手机号或邮箱注册账号，并妥善保管账号信息、不得转借他人，您需对账号下的全部行为负责。',
   },
   privacy: {
     title: '隐私政策',
@@ -292,7 +292,7 @@ function goBack() {
         class="mx-auto mb-4 h-40 w-40"
       />
       <view class="text-6 text-ink font-bold">
-        桐乡武协
+        众爱联盟
       </view>
     </view>
 

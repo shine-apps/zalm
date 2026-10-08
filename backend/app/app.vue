@@ -11,7 +11,7 @@ useHead({
   }
 })
 
-const title = '桐乡武协 · 管理后台'
+const title = '众爱联盟 · 管理后台'
 
 useSeoMeta({
   title,

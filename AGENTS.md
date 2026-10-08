@@ -1,4 +1,4 @@
-# AGENTS.md — 桐乡武协（tongxiangwuxie）
+# AGENTS.md — 众爱联盟（zhongailianmeng）
 
 本文件是整个仓库的 AI 协作入口，描述两个**相互独立、非 monorepo** 的工程如何组织、联调与校验。
 前端工程另有自己的规范文档（见文末「子工程文档」），本文件只记录跨工程共识与本项目相对模板的偏差。
@@ -23,7 +23,7 @@
 ## 3. 目录结构（仅列关键项）
 
 ```
-tongxiangwuxie/
+zhongailianmeng/
 ├─ AGENTS.md                  # 本文件
 ├─ .gitignore                 # 根仓库忽略规则
 ├─ backend/
@@ -71,8 +71,8 @@ tongxiangwuxie/
 
 1. **Bun 1.4.0**（前后端统一：安装依赖与运行脚本一律用 `bun`，实测版本 1.4.0）。
 2. **PostgreSQL**：使用本地已有容器（名 `postgres`，镜像 `postgres:18-alpine`），
-   连接串 `postgresql://postgres:postgres@127.0.0.1:5432/tongxiangwuxie`。
-   **不要新建容器**；库不存在时手动 `CREATE DATABASE tongxiangwuxie;`。
+   连接串 `postgresql://postgres:postgres@127.0.0.1:5432/zhongailianmeng`。
+   **不要新建容器**；库不存在时手动 `CREATE DATABASE zhongailianmeng;`。
 3. 后端配置：`cd backend && copy .env.example .env`（Windows），至少填写：
    - `BETTER_AUTH_SECRET`：≥32 字符随机串（`.env.example` 内附生成命令）；
    - `ADMIN_EMAIL` / `ADMIN_PASSWORD`：`db:seed` 创建初始管理员用，**密码至少 8 位**。

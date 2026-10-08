@@ -44,7 +44,7 @@ const mobileOpen = ref(false)
           name="i-lucide-feather"
           class="size-5 text-primary"
         />
-        <span class="font-semibold">桐乡武协后台</span>
+        <span class="font-semibold">众爱联盟后台</span>
       </div>
       <nav class="flex-1 p-2 space-y-1">
         <NuxtLink
@@ -77,7 +77,7 @@ const mobileOpen = ref(false)
             aria-label="菜单"
             @click="mobileOpen = true"
           />
-          <span class="md:hidden font-semibold text-sm">桐乡武协后台</span>
+          <span class="md:hidden font-semibold text-sm">众爱联盟后台</span>
         </div>
 
         <div class="flex items-center gap-2 min-w-0">

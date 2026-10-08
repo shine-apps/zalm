@@ -7,7 +7,7 @@ const { fetchMe } = useAuth()
 const toast = useToast()
 
 const state = reactive({
-  email: 'admin@tongxiangwuxie.local',
+  email: 'admin@zhongailianmeng.local',
   password: ''
 })
 
@@ -55,7 +55,7 @@ async function onSubmit(_event: FormSubmitEvent<typeof state>) {
           class="size-8 text-primary"
         />
         <h1 class="text-xl font-semibold">
-          桐乡武协管理后台
+          众爱联盟管理后台
         </h1>
         <p class="text-sm text-muted">
           请使用管理员账号登录

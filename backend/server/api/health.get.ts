@@ -2,6 +2,6 @@
 export default defineEventHandler(() =>
   ok({
     status: 'ok',
-    service: 'tongxiangwuxie-backend',
+    service: 'zhongailianmeng-backend',
     time: new Date().toISOString()
   }))

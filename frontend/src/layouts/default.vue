@@ -108,7 +108,7 @@ const menuItems: HeaderMenuItem[] = [
   { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', action: showComingSoon },
   { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star', action: showComingSoon },
   { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', action: showComingSoon },
-  { key: 'about', label: '关于桐乡武协', icon: 'i-carbon-information', action: () => switchTabFromMenu('/pages/about/about') },
+  { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', action: () => switchTabFromMenu('/pages/about/about') },
   { key: 'logout', label: '退出登录', icon: 'i-carbon-logout', danger: true, action: () => void handleLogout() },
 ]
 </script>

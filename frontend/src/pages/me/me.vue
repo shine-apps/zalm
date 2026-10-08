@@ -68,7 +68,7 @@ function pickThemeBrand() {
   })
 }
 
-// 菜单分组（仅「关于桐乡武协」已落地，其余为标准模板预留入口）
+// 菜单分组（仅「关于众爱联盟」已落地，其余为标准模板预留入口）
 const menuGroups = computed<MeMenuItem[][]>(() => [
   [
     { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar' },
@@ -81,7 +81,7 @@ const menuGroups = computed<MeMenuItem[][]>(() => [
   ],
   [
     { key: 'feedback', label: '意见反馈', icon: 'i-carbon-chat' },
-    { key: 'about', label: '关于桐乡武协', icon: 'i-carbon-information', url: '/pages/about/about', tabbar: true },
+    { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', url: '/pages/about/about', tabbar: true },
   ],
   [
     { key: 'theme-mode', label: `外观模式（${modeLabel.value}）`, icon: 'i-carbon-contrast', action: pickThemeMode },

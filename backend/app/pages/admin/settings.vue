@@ -225,7 +225,7 @@ onMounted(load)
               v-model="formState.value"
               class="w-full font-mono text-xs"
               :rows="10"
-              placeholder="例如：&quot;桐乡武协&quot;"
+              placeholder="例如：&quot;众爱联盟&quot;"
             />
           </UFormField>
 
