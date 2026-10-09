@@ -48,3 +48,17 @@ export function requireAdmin(event: Parameters<typeof ctx>[0]): SessionUser {
   if (!getRoleNames(event).includes(ADMIN_ROLE)) throw createApiError('FORBIDDEN')
   return userRow
 }
+
+/**
+ * 要求当前用户具备给定角色中的任意一个，否则 403。
+ * 用于非 /api/admin 前缀的业务授权（如活动组织者接口）。
+ */
+export function requireAnyRole(
+  event: Parameters<typeof requireUser>[0],
+  roles: string[]
+): SessionUser {
+  const userRow = requireUser(event)
+  const owned = getRoleNames(event)
+  if (!roles.some(name => owned.includes(name))) throw createApiError('FORBIDDEN')
+  return userRow
+}

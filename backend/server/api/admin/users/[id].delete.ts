@@ -12,6 +12,16 @@ export default defineEventHandler(async (event) => {
     throw createApiError('FORBIDDEN', { message: '不能删除当前登录的自己' })
   }
 
-  await deleteUserById(id)
+  try {
+    await deleteUserById(id)
+  } catch (err) {
+    // 23503 = foreign_key_violation：发布过活动或执行过补签的用户留痕需要保留
+    if ((err as { code?: string } | null)?.code === '23503') {
+      throw createApiError('CONFLICT', {
+        message: '该用户存在活动关联记录，请改用停用账号'
+      })
+    }
+    throw err
+  }
   return ok({ id }, '用户已删除')
 })

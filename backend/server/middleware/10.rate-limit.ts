@@ -30,6 +30,11 @@ function isSensitiveEndpoint(pathname: string, method: string): boolean {
     || pathname === '/api/auth/phone-number/verify'
     || pathname === '/api/auth/wechat/phone-sign-in'
     || (pathname === '/api/admin/users' && method === 'POST')
+    || (method === 'POST'
+      && /^\/api\/activities\/[^/]+\/(register|check-in|manual-check-in)$/.test(pathname))
+    || (method === 'POST'
+      && /^\/api\/admin\/activities\/[^/]+\/manual-check-in$/.test(pathname))
+    || (method === 'GET' && /^\/api\/activities\/[^/]+\/check-in-code$/.test(pathname))
   )
 }
 

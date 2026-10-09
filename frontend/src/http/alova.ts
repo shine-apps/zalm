@@ -25,6 +25,11 @@ export interface RequestMeta {
    * 这些端点成功时直接返回裸数据（如 user），不走 { code:'OK', data } 包装。
    */
   rawAuth?: boolean
+  /**
+   * 返回后端完整信封 { code,data,pagination?,stats? }（不剥离 data）。
+   * 用于需要 pagination 或顶层 stats 的分页/名单接口。
+   */
+  rawEnvelope?: boolean
   /** 出错时是否自动 toast（默认 true）。 */
   toast?: boolean
   /** 401 时是否跳过“清态并跳转登录页”（用于启动时静默探测会话）。 */
@@ -77,6 +82,10 @@ const alovaInstance = createAlova({
   statesHook: VueHook,
 
   beforeRequest(method) {
+    // 本工程所有接口随会话 Cookie 个性化（如 myRegistration），alova 默认 GET 缓存
+    // 5 分钟内存快照，既会导致写操作后 load() 拿到旧数据，也会在同设备切换账号时串视图，
+    // 这里在全局请求前把缓存时间置 0（alova v3 字段为 cacheFor，0 表示不缓存）。
+    method.config.cacheFor = 0
     // upload 走 multipart/form-data，Content-Type 需由 uni.uploadFile/浏览器自带 boundary，
     // 这里不能指定 application/json，否则服务端无法解析表单
     const isUpload = method.config.requestType === 'upload'
@@ -145,9 +154,11 @@ const alovaInstance = createAlova({
         return rawData
       }
 
-      // 统一包装：成功返回 data，业务码非 OK 抛错
+      // 统一包装：默认返回 data；rawEnvelope 返回完整信封（含 pagination/stats）
       const body = rawData as ApiEnvelope
       if (body && body.code === 'OK') {
+        if (meta.rawEnvelope)
+          return body
         return body.data
       }
       const message = body?.message || '请求失败'

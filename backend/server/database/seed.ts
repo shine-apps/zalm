@@ -24,6 +24,7 @@ import {
  */
 const ROLES = [
   { name: 'admin', description: '管理员' },
+  { name: 'activity_admin', description: '活动管理员' },
   { name: 'user', description: '普通用户' }
 ] as const
 

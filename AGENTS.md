@@ -37,6 +37,8 @@ zhongailianmeng/
 │  │  │  ├─ auth/[...].ts     #   Better Auth handler 挂载点 /api/auth/**
 │  │  │  ├─ admin/users/      #   用户管理（注意 [id]/roles.put.ts 目录嵌套）
 │  │  │  ├─ admin/roles/
+│  │  │  ├─ activities/       #   活动：公开列表/详情 + 报名/签到（登录）+ 组织者管理（activity_admin/admin）
+│  │  │  ├─ admin/activities/ #   PC 后台活动管理（仅 admin）
 │  │  │  ├─ me.get.ts  health.get.ts
 │  │  ├─ middleware/          # 00.request-id / 05.cors / 10.rate-limit / 20.auth
 │  │  ├─ plugins/error.ts     # 统一错误序列化钩子
@@ -135,9 +137,13 @@ bun run dev:h5       # http://localhost:3333
 - 仅拦截 `/api/**`；`/api/health`、`/api/auth/**` 为公开前缀。
 - 封禁用户一律 403；`/api/admin/**` 额外要求 **角色名严格等于 `'admin'`**
   （授权判据 `role.name === 'admin'`，角色挂在 user_role 关联表）。
-- 限流：进程内固定窗口 60s；全局默认 300/min，敏感端点（登录/注册/发 OTP/管理员建用户）10/min。
+- 限流：进程内固定窗口 60s；全局默认 300/min，敏感端点（登录/注册/发 OTP/管理员建用户，以及活动的
+  报名/自助签到/手动补签/取签到码 `register`、`check-in`、`manual-check-in`、`check-in-code`）10/min。
   手工测试触发 429 后需等约 65 秒。
 - `phoneNumber` 在 Better Auth 1.7 中是**插件**（`better-auth/plugins`），不是顶层配置字段。
+- 活动组织者角色为 `activity_admin`（或 `admin`）；业务活动接口挂 `/api/activities/**`，
+  其中 GET 列表/详情经 `isPublicRequest(pathname, method)` 对游客公开，组织者接口在处理器内
+  `requireAnyRole(event, ACTIVITY_ORGANIZER_ROLES)`；PC 后台活动接口仍在 `/api/admin/activities/**`（仅 admin）。
 
 ### 7.3 数据层
 

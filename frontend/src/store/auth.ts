@@ -21,6 +21,12 @@ export const useAuthStore = defineStore(
     /** 授权判据：role.name === 'admin'（此处以角色名列表表达）。 */
     const isAdmin = computed(() => !!user.value?.roles?.includes('admin'))
 
+    /** 活动组织者能力：角色含 admin 或 activity_admin（仅控 UI，最终鉴权以后端为准）。 */
+    const canManageActivity = computed(() => {
+      const roles = user.value?.roles ?? []
+      return roles.includes('admin') || roles.includes('activity_admin')
+    })
+
     /**
      * 用当前会话 Cookie 拉取用户信息（含 roles），用于启动恢复与登录后补全。
      * @param silent 静默模式：未登录（401）时不提示、不跳转，仅抛出由调用方忽略。
@@ -99,6 +105,7 @@ export const useAuthStore = defineStore(
       user,
       isLoggedIn,
       isAdmin,
+      canManageActivity,
       fetchMe,
       login,
       loginByPhoneOtp,

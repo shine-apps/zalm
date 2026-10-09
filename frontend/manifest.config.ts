@@ -19,6 +19,7 @@ const {
   VITE_APP_PUBLIC_BASE,
   VITE_APP_ROUTER_MODE,
   VITE_FALLBACK_LOCALE,
+  VITE_QQMAP_KEY,
 } = env
 // console.log('manifest.config.ts env:', env)
 
@@ -34,6 +35,14 @@ export default defineManifestConfig({
     router: {
       mode: VITE_APP_ROUTER_MODE as 'history' | 'hash',
       base: VITE_APP_PUBLIC_BASE,
+    },
+    // H5 端 uni.chooseLocation 依赖腾讯地图 JS SDK；key 为空时选点不可用，表单支持手动降级
+    sdkConfigs: {
+      maps: {
+        qqmap: {
+          key: VITE_QQMAP_KEY || '',
+        },
+      },
     },
   },
   /* 5+App特有相关 */
@@ -121,6 +130,8 @@ export default defineManifestConfig({
   /* 小程序特有相关 */
   'mp-weixin': {
     appid: VITE_WX_APPID,
+    // uni.chooseLocation 隐私接口声明（2022 后微信后台与代码两侧均需声明）
+    requiredPrivateInfos: ['chooseLocation'],
     setting: {
       urlCheck: false,
       // 是否启用 ES6 转 ES5

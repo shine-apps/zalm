@@ -10,3 +10,21 @@ export function isPublicPath(pathname: string): boolean {
     prefix => pathname === prefix || pathname.startsWith(`${prefix}/`)
   )
 }
+
+/**
+ * 方法 + 路径 级别的公开放行。
+ * 活动列表/详情对游客可读，但写方法与深层路径（mine、registrations 等）仍须登录。
+ * 详情规则只匹配单段 id，避免裸前缀误伤深层路径。
+ */
+const PUBLIC_GET_PATTERNS = [
+  /^\/api\/activities$/,
+  /^\/api\/activities\/[^/]+$/
+]
+
+export function isPublicRequest(pathname: string, method: string): boolean {
+  if (isPublicPath(pathname)) return true
+  if (method.toUpperCase() === 'GET') {
+    return PUBLIC_GET_PATTERNS.some(re => re.test(pathname))
+  }
+  return false
+}

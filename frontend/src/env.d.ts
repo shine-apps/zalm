@@ -31,6 +31,10 @@ interface ImportMetaEnv {
   readonly VITE_APP_ROUTER_MODE: 'history' | 'hash'
   /** 后端是否有统一前缀 /api */
   readonly VITE_SERVER_HAS_API_PREFIX: 'true' | 'false'
+  /** 腾讯位置服务 key（H5 chooseLocation），可留空 */
+  readonly VITE_QQMAP_KEY?: string
+  /** 签到二维码 H5 基址，留空时 H5 回退 location.origin */
+  readonly VITE_H5_BASE_URL?: string
   /** 是否清除console */
   readonly VITE_DELETE_CONSOLE: string
   // 更多环境变量...

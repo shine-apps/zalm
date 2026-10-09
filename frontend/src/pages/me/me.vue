@@ -71,7 +71,7 @@ function pickThemeBrand() {
 // 菜单分组（仅「关于众爱联盟」已落地，其余为标准模板预留入口）
 const menuGroups = computed<MeMenuItem[][]>(() => [
   [
-    { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar' },
+    { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', url: '/pages/activity/mine' },
     { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
     { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', dot: false },
   ],

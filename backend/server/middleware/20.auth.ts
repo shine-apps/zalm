@@ -1,7 +1,7 @@
 import type { SessionUser } from '../utils/auth-context'
 import { ADMIN_ROLE, auth } from '../utils/auth'
 import { getCachedUserRoleNames } from '../utils/roles-cache'
-import { isPublicPath } from '../utils/path'
+import { isPublicRequest } from '../utils/path'
 
 /**
  * 服务端认证/授权中间件（Cookie 单通道）。
@@ -13,7 +13,20 @@ import { isPublicPath } from '../utils/path'
 export default defineEventHandler(async (event) => {
   const pathname = (event.path ?? '').split('?')[0] ?? ''
   if (!pathname.startsWith('/api/') || event.method === 'OPTIONS') return
-  if (isPublicPath(pathname)) {
+  if (isPublicRequest(pathname, event.method)) {
+    // 公开的活动 GET（列表/详情）不强制登录，但若携带有效会话则软挂载到上下文，
+    // 供详情附带 myRegistration；不查角色、不做封禁/登录拦截。
+    if (pathname === '/api/activities' || pathname.startsWith('/api/activities/')) {
+      const headers = new Headers()
+      for (const [key, value] of Object.entries(getRequestHeaders(event))) {
+        if (typeof value === 'string') headers.set(key, value)
+      }
+      const result = await auth.api.getSession({ headers }).catch(() => null)
+      if (result?.user) {
+        event.context.user = result.user as SessionUser
+        event.context.session = result.session
+      }
+    }
     return
   }
 

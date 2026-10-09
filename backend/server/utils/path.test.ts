@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isPublicPath } from './path'
+import { isPublicPath, isPublicRequest } from './path'
 
 describe('isPublicPath', () => {
   it('allows the exact /api/health path', () => {
@@ -51,5 +51,29 @@ describe('isPublicPath', () => {
     expect(isPublicPath('/api/me')).toBe(false)
     expect(isPublicPath('/api/media/register')).toBe(false)
     expect(isPublicPath('/api/admin/users')).toBe(false)
+  })
+})
+
+describe('isPublicRequest', () => {
+  it('allows guest GET on activity collection and detail', () => {
+    expect(isPublicRequest('/api/activities', 'GET')).toBe(true)
+    expect(isPublicRequest('/api/activities/550e8400-e29b-41d4-a716-446655440000', 'GET')).toBe(true)
+  })
+
+  it('keeps deeper activity paths authenticated even for GET', () => {
+    expect(isPublicRequest('/api/activities/mine/registrations', 'GET')).toBe(false)
+    expect(isPublicRequest('/api/activities/x/registrations', 'GET')).toBe(false)
+    expect(isPublicRequest('/api/activities/x/check-in-code', 'GET')).toBe(false)
+  })
+
+  it('keeps activity write methods authenticated', () => {
+    expect(isPublicRequest('/api/activities', 'POST')).toBe(false)
+    expect(isPublicRequest('/api/activities/x', 'PUT')).toBe(false)
+    expect(isPublicRequest('/api/activities/x/register', 'POST')).toBe(false)
+  })
+
+  it('still honors prefix-based public paths for any method', () => {
+    expect(isPublicRequest('/api/health', 'GET')).toBe(true)
+    expect(isPublicRequest('/api/auth/sign-in/email', 'POST')).toBe(true)
   })
 })

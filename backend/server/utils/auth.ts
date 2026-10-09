@@ -15,6 +15,10 @@ const env = getEnv()
 export const ADMIN_ROLE = 'admin'
 export const DEFAULT_USER_ROLE = 'user'
 
+/** 活动组织者角色：activity_admin 或 admin 均可组织活动。 */
+export const ACTIVITY_ADMIN_ROLE = 'activity_admin'
+export const ACTIVITY_ORGANIZER_ROLES = [ADMIN_ROLE, ACTIVITY_ADMIN_ROLE]
+
 /**
  * Better Auth 实例（Cookie 单通道）。
  * - 邮箱密码（minPasswordLength=8）
