@@ -19,8 +19,8 @@ async function invoke(url: string, roles?: string[]) {
   return navigateToInterceptor.invoke({ url })
 }
 
-// 众爱联盟总台改版后，真实 tabbar 配置里四个 tab（首页/活动/关于/我的）均对所有人开放。
-// 这里 mock 一份保留单个 admin 受限 tab（关于）的配置，用于验证拦截机制本身；
+// 众爱联盟总台改版后，真实 tabbar 配置里三个 tab（首页/活动/我的）均对所有人开放，
+// 「关于」已降级为普通页面。这里 mock 一份保留单个 admin 受限 tab（关于）的配置，用于验证拦截机制本身；
 // 顺序与真实配置一致，仅给「关于」挂 roles，首个可见项仍是首页。
 describe('navigateToInterceptor 角色守卫', () => {
   beforeEach(() => {
@@ -80,8 +80,8 @@ describe('navigateToInterceptor 角色守卫', () => {
   })
 })
 
-// 不 mock 配置：使用真实 tabbar 配置，守护众爱联盟总台「四个 tab 对所有人可见」的需求
-describe('navigateToInterceptor 总台四 tab 对游客公开', () => {
+// 不 mock 配置：使用真实 tabbar 配置，守护「tab 对所有人可见、普通页（关于）不被拦截」的需求
+describe('navigateToInterceptor 总台 tab 对游客公开', () => {
   // 上一个 describe 用 vi.doMock 注册的 config mock 不会随 resetModules 消失，这里显式解除，
   // 确保本组用例跑的是真实 tabbar 配置
   beforeEach(() => {

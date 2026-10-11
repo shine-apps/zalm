@@ -23,9 +23,9 @@ const entries = [
   { key: 'care', label: '关爱群体', icon: 'i-carbon-user-multiple' },
 ] as const
 
-/** Banner 主按钮：去关于 tab 了解组织 */
+/** Banner 主按钮：去关于页了解组织 */
 function goAbout() {
-  uni.switchTab({ url: '/pages/about/about' })
+  uni.navigateTo({ url: '/pages/about/about' })
 }
 
 /** 业务入口本期均未上线 */

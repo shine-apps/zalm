@@ -81,7 +81,7 @@ const menuGroups = computed<MeMenuItem[][]>(() => [
   ],
   [
     { key: 'feedback', label: '意见反馈', icon: 'i-carbon-chat' },
-    { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', url: '/pages/about/about', tabbar: true },
+    { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', url: '/pages/about/about' },
   ],
   [
     { key: 'theme-mode', label: `外观模式（${modeLabel.value}）`, icon: 'i-carbon-contrast', action: pickThemeMode },
