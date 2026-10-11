@@ -13,6 +13,7 @@ const baseBody = {
   title: '秋日助学走访',
   description: '走访困境学生家庭',
   location: loc,
+  categories: ['助学帮扶', '传统文化'] as string[],
   startTime: '2026-11-01T09:00:00+08:00',
   endTime: '2026-11-01T12:00:00+08:00',
   registerDeadline: '2026-10-31T18:00:00+08:00',
@@ -57,6 +58,7 @@ describe('activityCreateBodySchema', () => {
     const parsed = activityCreateBodySchema.parse({
       title: '小型茶话会',
       location: loc,
+      categories: ['爱心物资'],
       startTime: baseBody.startTime,
       endTime: baseBody.endTime,
       registerDeadline: null,
@@ -81,6 +83,21 @@ describe('activityCreateBodySchema', () => {
 
   it('rejects unknown keys', () => {
     expect(activityCreateBodySchema.safeParse({ ...baseBody, hacker: 1 }).success).toBe(false)
+  })
+
+  it('requires at least one category and rejects values outside the fixed set', () => {
+    expect(activityCreateBodySchema.safeParse({ ...baseBody, categories: [] }).success).toBe(false)
+    expect(activityCreateBodySchema.safeParse({ ...baseBody, categories: ['其他'] }).success).toBe(false)
+    const { categories: _omitted, ...withoutCategories } = baseBody
+    expect(activityCreateBodySchema.safeParse(withoutCategories).success).toBe(false)
+  })
+
+  it('accepts multiple categories in the fixed value set', () => {
+    const parsed = activityCreateBodySchema.parse({
+      ...baseBody,
+      categories: ['爱心物资', '助学帮扶', '传统文化', '乡村振兴', '关爱群体']
+    })
+    expect(parsed.categories).toEqual(['爱心物资', '助学帮扶', '传统文化', '乡村振兴', '关爱群体'])
   })
 })
 

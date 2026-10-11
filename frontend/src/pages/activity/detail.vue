@@ -236,6 +236,15 @@ onUnload(() => {
           <text class="text-5 text-ink font-semibold leading-7">
             {{ detail.title }}
           </text>
+          <view v-if="detail.categories.length" class="mt-2 flex flex-wrap">
+            <text
+              v-for="c in detail.categories"
+              :key="c"
+              class="mr-1.5 rounded bg-primary-soft px-2 py-0.5 text-3 text-primary-soft-text"
+            >
+              {{ c }}
+            </text>
+          </view>
           <view class="mt-3 flex items-start">
             <view class="i-carbon-time mt-0.5 text-16px text-muted" />
             <view class="ml-2">

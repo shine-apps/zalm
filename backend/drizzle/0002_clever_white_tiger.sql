@@ -1,0 +1,1 @@
+ALTER TABLE "activity" ADD COLUMN "categories" text[] DEFAULT '{}'::text[] NOT NULL;

@@ -191,10 +191,21 @@ onReachBottom(() => {
                 {{ stateBadge[a.state]?.text }}
               </text>
             </view>
-            <view class="i-carbon-time mt-2 flex items-center text-3 text-sub">
+            <view v-if="a.categories.length" class="mt-1.5 flex flex-wrap">
+              <text
+                v-for="c in a.categories"
+                :key="c"
+                class="mr-1 rounded bg-primary-soft px-1.5 py-0.5 text-2.5 text-primary-soft-text"
+              >
+                {{ c }}
+              </text>
+            </view>
+            <view class="mt-2 flex items-center text-3 text-sub">
+              <view class="i-carbon-time mr-1 text-16px text-muted" />
               <text class="ml-1">{{ formatTimeRange(a.startTime, a.endTime) }}</text>
             </view>
-            <view class="i-carbon-location mt-1 flex items-center text-3 text-sub">
+            <view class="mt-1 flex items-center text-3 text-sub">
+              <view class="i-carbon-location mr-1 text-16px text-muted" />
               <text class="ml-1 max-w-300px truncate">{{ a.location.name }}</text>
             </view>
             <view class="mt-2 flex items-center">

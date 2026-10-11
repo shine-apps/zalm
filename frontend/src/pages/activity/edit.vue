@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import type { ActivityPayload } from '@/api/activity'
+import type { ActivityCategory, ActivityPayload } from '@/api/activity'
 import type { MediaItem } from '@/api/media'
-import { createActivity, getActivity, updateActivity } from '@/api/activity'
+import { ACTIVITY_CATEGORIES, createActivity, getActivity, updateActivity } from '@/api/activity'
 import { useAuthStore } from '@/store/auth'
 import type { DatetimePickerInstance } from '@/utils/wd-picker-types'
 import { chooseActivityLocation } from '@/utils/location'
@@ -22,6 +22,7 @@ const form = ref({
   title: '',
   description: '',
   coverUrl: '' as string,
+  categories: [] as ActivityCategory[],
   startTs: 0,
   endTs: 0,
   hasDeadline: false,
@@ -69,6 +70,7 @@ async function prefill(id: string) {
     form.value.title = a.title
     form.value.description = a.description
     form.value.coverUrl = a.coverUrl ?? ''
+    form.value.categories = [...a.categories]
     form.value.startTs = new Date(a.startTime).getTime()
     form.value.endTs = new Date(a.endTime).getTime()
     form.value.hasDeadline = !!a.registerDeadline
@@ -99,6 +101,16 @@ async function onCoverChange(items: MediaItem[]) {
 
 function removeCover() {
   form.value.coverUrl = ''
+}
+
+// —— 活动分类（多选 toggle）——
+function toggleCategory(c: ActivityCategory) {
+  const list = form.value.categories
+  const i = list.indexOf(c)
+  if (i >= 0)
+    list.splice(i, 1)
+  else
+    list.push(c)
 }
 
 // —— 时间选择 ——
@@ -134,6 +146,8 @@ function validate(): string | null {
   const title = f.title.trim()
   if (title.length < 2 || title.length > 50)
     return '标题需 2~50 个字'
+  if (f.categories.length === 0)
+    return '请至少选择一个活动分类'
   if (f.description.length > 2000)
     return '活动详情不能超过 2000 字'
   if (!f.startTs || !f.endTs)
@@ -168,6 +182,7 @@ function buildPayload(): ActivityPayload {
       latitude: f.location.latitude,
       longitude: f.location.longitude,
     },
+    categories: [...f.categories],
     startTime: new Date(f.startTs).toISOString(),
     endTime: new Date(f.endTs).toISOString(),
     registerDeadline: f.hasDeadline ? new Date(f.deadlineTs).toISOString() : null,
@@ -254,6 +269,28 @@ async function onSubmit() {
         </view>
       </view>
       <media-uploader ref="coverUploader" type="image" bare @change="onCoverChange" />
+    </view>
+
+    <!-- 活动分类（必选，可多选） -->
+    <view class="mt-3 rounded-3 bg-card p-4 shadow-sm">
+      <view class="flex items-center">
+        <text class="text-4 text-ink font-medium">活动分类</text>
+        <text v-if="form.categories.length" class="ml-auto text-3 text-muted">
+          已选 {{ form.categories.length }}/{{ ACTIVITY_CATEGORIES.length }}
+        </text>
+      </view>
+      <text class="mt-0.5 block text-3 text-muted">必选，可多选</text>
+      <view class="mt-3 flex flex-wrap">
+        <view
+          v-for="c in ACTIVITY_CATEGORIES"
+          :key="c"
+          class="mr-2 mb-2 rounded-full px-3 py-1.5 text-3.5"
+          :class="form.categories.includes(c) ? 'bg-primary text-white' : 'bg-hover text-sub'"
+          @click="toggleCategory(c)"
+        >
+          {{ c }}
+        </view>
+      </view>
     </view>
 
     <!-- 时间 -->

@@ -19,6 +19,7 @@ import {
   user as userTable,
   type activity,
   type activityRegistration,
+  type ActivityCategory,
   type ActivityLocation,
   type ActivityStatus
 } from '../schema'
@@ -48,6 +49,7 @@ export interface NewActivityInput {
   description: string
   coverUrl: string | null
   location: ActivityLocation
+  categories: ActivityCategory[]
   startTime: Date
   endTime: Date
   registerDeadline: Date | null
@@ -138,6 +140,7 @@ export async function insertActivity(input: NewActivityInput): Promise<ActivityR
       description: input.description,
       coverUrl: input.coverUrl,
       location: input.location,
+      categories: input.categories,
       startTime: input.startTime,
       endTime: input.endTime,
       registerDeadline: input.registerDeadline,

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ACTIVITY_CATEGORIES } from '../database/schema'
 import { keywordQuerySchema, pageQuerySchema } from '../utils/pagination'
 
 export interface TimeIssue {
@@ -51,12 +52,19 @@ export const activityLocationSchema = z
     }
   })
 
+/** 活动分类（固定值域多选，创建必填、更新可选）。 */
+export const activityCategoriesSchema = z
+  .array(z.enum(ACTIVITY_CATEGORIES))
+  .min(1, '请至少选择一个活动分类')
+  .max(ACTIVITY_CATEGORIES.length, '分类数量超出限制')
+
 export const activityCreateBodySchema = z
   .object({
     title: z.string().trim().min(2).max(50),
     description: z.string().max(2000).default(''),
     coverUrl: z.string().url().max(500).nullable().optional(),
     location: activityLocationSchema,
+    categories: activityCategoriesSchema,
     startTime: isoDate,
     endTime: isoDate,
     registerDeadline: isoDate.nullable().optional(),
@@ -79,6 +87,7 @@ export const activityUpdateBodySchema = z
     description: z.string().max(2000).optional(),
     coverUrl: z.string().url().max(500).nullable().optional(),
     location: activityLocationSchema.optional(),
+    categories: activityCategoriesSchema.optional(),
     startTime: isoDate.optional(),
     endTime: isoDate.optional(),
     registerDeadline: isoDate.nullable().optional(),

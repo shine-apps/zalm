@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   integer,
   jsonb,
@@ -74,6 +75,16 @@ export type RegistrationStatus = (typeof REGISTRATION_STATUSES)[number]
 export const CHECK_IN_METHODS = ['scan', 'manual'] as const
 export type CheckInMethod = (typeof CHECK_IN_METHODS)[number]
 
+/** 活动分类值域（固定 5 项，直接存中文名，前后端展示无需映射）。 */
+export const ACTIVITY_CATEGORIES = [
+  '爱心物资',
+  '助学帮扶',
+  '传统文化',
+  '乡村振兴',
+  '关爱群体'
+] as const
+export type ActivityCategory = (typeof ACTIVITY_CATEGORIES)[number]
+
 /** 活动标准化位置（GCJ-02 经纬度；手动降级时经纬度为 null）。 */
 export interface ActivityLocation {
   name: string
@@ -90,6 +101,12 @@ export const activity = pgTable('activity', {
   description: text('description').notNull().default(''),
   coverUrl: text('cover_url'),
   location: jsonb('location').$type<ActivityLocation>().notNull(),
+  // 所属分类（text[] 固定值域多选，Zod 入口保证值域；默认空数组兜底直接 SQL 插入）
+  categories: text('categories')
+    .array()
+    .$type<ActivityCategory[]>()
+    .notNull()
+    .default(sql`'{}'::text[]`),
   startTime: timestamp('start_time', { withTimezone: true }).notNull(),
   endTime: timestamp('end_time', { withTimezone: true }).notNull(),
   registerDeadline: timestamp('register_deadline', { withTimezone: true }),

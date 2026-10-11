@@ -16,6 +16,16 @@ export type ActivityStateFilter = 'active' | 'past' | 'cancelled'
 /** 活动落库状态。 */
 export type ActivityStatus = 'published' | 'cancelled'
 
+/** 活动分类值域（与后端 ACTIVITY_CATEGORIES 对齐；直接存中文名，展示无需映射）。 */
+export const ACTIVITY_CATEGORIES = [
+  '爱心物资',
+  '助学帮扶',
+  '传统文化',
+  '乡村振兴',
+  '关爱群体',
+] as const
+export type ActivityCategory = (typeof ACTIVITY_CATEGORIES)[number]
+
 export type RegistrationStatus = 'registered' | 'cancelled' | 'checked_in'
 export type CheckInMethod = 'scan' | 'manual'
 
@@ -39,6 +49,7 @@ export interface ActivityView {
   description: string
   coverUrl: string | null
   location: ActivityLocation
+  categories: ActivityCategory[]
   startTime: string
   endTime: string
   registerDeadline: string | null
@@ -92,6 +103,7 @@ export interface ActivityPayload {
   description?: string
   coverUrl?: string | null
   location: ActivityLocation
+  categories: ActivityCategory[]
   startTime: string
   endTime: string
   registerDeadline?: string | null
