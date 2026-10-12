@@ -21,8 +21,6 @@ const albumUploader = ref<{ trigger: () => void, reset: () => void } | null>(nul
 
 /** 已尝试绑定的媒体 id（change 事件随进度深监听高频触发，防止重复提交）。 */
 const processedIds = new Set<string>()
-/** 服务端已保存的描述快照（失焦时无变化则跳过 PATCH）。 */
-const savedDescriptions = new Map<string, string>()
 
 async function load() {
   if (!activityId.value)
@@ -31,9 +29,6 @@ async function load() {
   try {
     const a = await getActivity(activityId.value)
     media.value = a.media
-    savedDescriptions.clear()
-    for (const item of a.media)
-      savedDescriptions.set(item.id, item.description)
   }
   catch {
     // 拦截器已提示
@@ -74,20 +69,45 @@ async function onUploadChange(items: MediaItem[]) {
     await load()
 }
 
-function onBlurDescription(item: ActivityMediaItem) {
-  if (savedDescriptions.get(item.id) === item.description)
-    return
-  void saveDescription(item)
+// —— 描述弹窗编辑 ——
+const descEditVisible = ref(false)
+const editingItem = ref<ActivityMediaItem | null>(null)
+const descDraft = ref('')
+const savingDesc = ref(false)
+
+function openDescEditor(item: ActivityMediaItem) {
+  editingItem.value = item
+  descDraft.value = item.description
+  descEditVisible.value = true
 }
 
-async function saveDescription(item: ActivityMediaItem) {
+function closeDescEditor() {
+  if (savingDesc.value)
+    return
+  descEditVisible.value = false
+}
+
+async function saveDesc() {
+  const item = editingItem.value
+  if (!item || savingDesc.value)
+    return
+  const next = descDraft.value.trim()
+  if (next === item.description) {
+    descEditVisible.value = false
+    return
+  }
+  savingDesc.value = true
   try {
-    await updateActivityMedia(activityId.value, item.id, item.description)
-    savedDescriptions.set(item.id, item.description)
+    await updateActivityMedia(activityId.value, item.id, next)
+    item.description = next
+    descEditVisible.value = false
     uni.showToast({ title: '描述已保存', icon: 'none' })
   }
   catch {
-    await load() // 失败回滚到服务端值
+    // 拦截器已提示，弹窗保留供重试
+  }
+  finally {
+    savingDesc.value = false
   }
 }
 
@@ -166,9 +186,14 @@ onLoad((options) => {
         还没有相册内容，用上方上传区添加
       </view>
 
-      <view v-for="item in media" :key="item.id" class="mt-3 flex items-start gap-3">
+      <view
+        v-for="item in media"
+        :key="item.id"
+        class="mt-3 overflow-hidden border border-line rounded-2"
+      >
+        <!-- 媒体（图片 / 视频占位） -->
         <view
-          class="h-80px w-100px shrink-0 overflow-hidden rounded-2"
+          class="relative aspect-[4/3] w-full overflow-hidden"
           :class="item.type === 'video' ? 'bg-black' : 'bg-hover'"
         >
           <image
@@ -177,27 +202,72 @@ onLoad((options) => {
             mode="aspectFill"
             class="h-full w-full"
           />
-          <view v-else class="h-full w-full center">
-            <view class="i-carbon-video text-20px text-white/80" />
+          <view v-else class="absolute inset-0 flex items-center justify-center">
+            <view class="i-carbon-video text-32px text-white/80" />
+          </view>
+          <text
+            class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-2.5 text-white"
+          >
+            {{ item.type === 'video' ? '视频' : '图片' }}
+          </text>
+          <view
+            class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center rounded-full bg-black/50"
+            @click="confirmRemove(item)"
+          >
+            <view class="i-carbon-trash-can text-16px text-white" />
           </view>
         </view>
-        <view class="min-w-0 flex-1">
-          <view class="flex items-center">
-            <text class="text-3 text-muted">{{ item.type === 'video' ? '视频' : '图片' }}</text>
-            <text
-              class="i-carbon-trash-can ml-auto text-16px text-muted"
-              @click="confirmRemove(item)"
-            />
-          </view>
-          <input
-            v-model="item.description"
-            :maxlength="200"
-            placeholder="添加描述（选填，最多 200 字）"
-            class="mt-1 h-36px rounded-2 bg-hover px-2 text-3.5 text-ink"
-            @blur="onBlurDescription(item)"
+        <!-- 描述：修改按钮在最前，描述文本在后 -->
+        <view class="flex items-start gap-2 px-2.5 py-2">  
+          <text
+            class="min-w-0 flex-1 whitespace-pre-wrap break-words text-3.5 text-sub leading-5"
+            :class="!item.description && 'text-muted'"
           >
+            {{ item.description || '未添加描述' }}
+          </text>
+          <view
+            class="text-primary-soft-text flex shrink-0 items-center rounded-full bg-primary-soft px-2.5 py-0.5 text-3"
+            @click="openDescEditor(item)"
+          >
+            <view class="i-carbon-edit mr-0.5 text-13px" /> 修改
+          </view>
         </view>
       </view>
     </view>
+
+    <!-- 修改描述弹窗 -->
+    <wd-popup
+      v-model="descEditVisible"
+      position="bottom"
+      round
+      safe-area-inset-bottom
+    >
+      <view class="px-4 pb-2 pt-4">
+        <text class="text-4 text-ink font-medium">修改描述</text>
+        <wd-textarea
+          v-model="descDraft"
+          :maxlength="200"
+          show-word-limit
+          auto-height
+          placeholder="添加描述（选填，最多 200 字）"
+          class="mt-3"
+        />
+        <view class="mt-3 flex pb-2">
+          <button
+            class="h-40px flex-1 border border-line-strong rounded-2 text-3.5"
+            @click="closeDescEditor"
+          >
+            取消
+          </button>
+          <button
+            :disabled="savingDesc"
+            class="ml-3 h-40px flex-1 rounded-2 bg-primary text-3.5 text-white"
+            @click="saveDesc"
+          >
+            保存
+          </button>
+        </view>
+      </view>
+    </wd-popup>
   </view>
 </template>
