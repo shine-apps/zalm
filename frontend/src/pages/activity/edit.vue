@@ -190,6 +190,11 @@ function buildPayload(): ActivityPayload {
   }
 }
 
+// —— 相册管理（仅编辑模式：新活动尚无 id）——
+function goMedia() {
+  uni.navigateTo({ url: `/pages/activity/media?id=${editingId.value}` })
+}
+
 async function onSubmit() {
   if (!auth.canManageActivity) {
     toLoginPage({ mode: 'reLaunch' })
@@ -284,7 +289,7 @@ async function onSubmit() {
         <view
           v-for="c in ACTIVITY_CATEGORIES"
           :key="c"
-          class="mr-2 mb-2 rounded-full px-3 py-1.5 text-3.5"
+          class="mb-2 mr-2 rounded-full px-3 py-1.5 text-3.5"
           :class="form.categories.includes(c) ? 'bg-primary text-white' : 'bg-hover text-sub'"
           @click="toggleCategory(c)"
         >
@@ -371,6 +376,18 @@ async function onSubmit() {
         placeholder="介绍活动内容、注意事项等（不超过 2000 字）"
         class="mt-2 h-200px w-full rounded-2 bg-hover p-3 text-4 text-ink"
       />
+    </view>
+
+    <!-- 相册管理入口（编辑模式） -->
+    <view
+      v-if="editingId"
+      class="mt-4 flex items-center rounded-3 bg-card p-4 shadow-sm"
+      @click="goMedia"
+    >
+      <view class="i-carbon-image text-16px text-muted" />
+      <text class="ml-2 text-4 text-ink">管理活动相册</text>
+      <text class="ml-auto text-3 text-muted">照片 / 视频</text>
+      <view class="i-carbon-chevron-right ml-2 text-16px text-muted" />
     </view>
 
     <button

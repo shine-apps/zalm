@@ -1,6 +1,8 @@
 <script lang="ts" setup>
-import type { ActivityView } from '@/api/activity'
+import type { ActivityMediaItem, ActivityView } from '@/api/activity'
+import type { MediaItem } from '@/api/media'
 import {
+  bindActivityMedia,
   cancelActivity as cancelActivityApi,
   cancelMyRegistration,
   getActivity,
@@ -181,6 +183,74 @@ async function submitCancelActivity() {
   }
 }
 
+// —— 活动相册 ——
+const GALLERY_PREVIEW_LIMIT = 12
+const galleryExpanded = ref(false)
+const playingVideo = ref<ActivityMediaItem | null>(null)
+
+/** 本页上传区（组织者）。 */
+const showUploader = ref(false)
+const imageUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
+const videoUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
+/** 已尝试绑定的媒体 id（change 事件随进度深监听高频触发，防止重复提交）。 */
+const processedIds = new Set<string>()
+
+/**
+ * 上传完成即绑定：等本轮全部上传结束（无 uploading）后批量 POST，
+ * 成功后重置 uploader 暂存区并刷新详情（相册列表随之更新）。
+ */
+async function onUploadChange(items: MediaItem[]) {
+  if (items.some(i => i.status === 'uploading'))
+    return
+  let attempted = false
+  for (const item of items) {
+    if (item.status !== 'done' || item.id.startsWith('local-') || processedIds.has(item.id))
+      continue
+    processedIds.add(item.id)
+    attempted = true
+    try {
+      await bindActivityMedia(activityId.value, { mediaId: item.id, description: '' })
+    }
+    catch {
+      // 409（已挂载）静默；其余错误拦截器已 toast
+    }
+  }
+  if (!items.some(i => i.status === 'error')) {
+    imageUploader.value?.reset()
+    videoUploader.value?.reset()
+    processedIds.clear()
+  }
+  if (attempted)
+    await load()
+}
+
+const galleryImages = computed(() =>
+  (detail.value?.media ?? []).filter(m => m.type === 'image'),
+)
+const galleryShown = computed(() => {
+  const list = detail.value?.media ?? []
+  return galleryExpanded.value ? list : list.slice(0, GALLERY_PREVIEW_LIMIT)
+})
+
+function previewImage(current: ActivityMediaItem) {
+  uni.previewImage({
+    urls: galleryImages.value.map(m => resolveMediaUrl(m.url)),
+    current: resolveMediaUrl(current.url),
+  })
+}
+
+function closeVideo() {
+  playingVideo.value = null
+}
+
+function formatDuration(seconds?: number): string {
+  if (!seconds)
+    return ''
+  const m = Math.floor(seconds / 60)
+  const s = Math.round(seconds % 60)
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
 const progressPercent = computed(() => {
   const a = detail.value
   if (!a || a.capacity === null || a.capacity <= 0)
@@ -240,7 +310,7 @@ onUnload(() => {
             <text
               v-for="c in detail.categories"
               :key="c"
-              class="mr-1.5 rounded bg-primary-soft px-2 py-0.5 text-3 text-primary-soft-text"
+              class="text-primary-soft-text mr-1.5 rounded bg-primary-soft px-2 py-0.5 text-3"
             >
               {{ c }}
             </text>
@@ -320,12 +390,92 @@ onUnload(() => {
               <view class="i-carbon-list mr-1 text-14px" /> 报名名单
             </view>
             <view
+              class="text-primary-soft-text mb-2 mr-3 flex items-center rounded-full bg-primary-soft px-4 py-1.5 text-3.5"
+              @click="showUploader = !showUploader"
+            >
+              <view class="i-carbon-cloud-upload mr-1 text-14px" /> 上传相册
+            </view>
+            <view
               v-if="!isCancelled"
               class="mb-2 flex items-center rounded-full bg-danger-soft px-4 py-1.5 text-3.5 text-danger"
               @click="doCancelActivity"
             >
               <view class="i-carbon-stop-sign mr-1 text-14px" /> 取消活动
             </view>
+          </view>
+
+          <!-- 本页上传区 -->
+          <view v-if="showUploader" class="mt-2 border-t border-line pt-3">
+            <text class="text-3 text-muted">上传完成后自动加入下方活动相册</text>
+            <view class="mt-2">
+              <media-uploader
+                ref="imageUploader"
+                type="image"
+                multiple
+                @change="onUploadChange"
+              />
+            </view>
+            <view class="mt-3">
+              <media-uploader
+                ref="videoUploader"
+                type="video"
+                :max-count="9"
+                @change="onUploadChange"
+              />
+            </view>
+          </view>
+        </view>
+
+        <!-- 活动相册 -->
+        <view v-if="detail.media.length" class="mt-3 rounded-3 bg-card p-4 shadow-sm">
+          <view class="flex items-center">
+            <text class="text-4 text-ink font-medium">活动相册</text>
+            <text class="ml-auto text-3 text-muted">{{ detail.media.length }} 项</text>
+          </view>
+          <view class="mt-3 flex flex-col gap-3">
+            <view
+              v-for="item in galleryShown"
+              :key="item.id"
+              class="overflow-hidden border border-line rounded-2"
+            >
+              <view
+                class="relative aspect-[4/3] w-full overflow-hidden"
+                :class="item.type === 'video' ? 'bg-black' : 'bg-hover'"
+                @click="item.type === 'image' ? previewImage(item) : playingVideo = item"
+              >
+                <image
+                  v-if="item.type === 'image'"
+                  :src="resolveMediaUrl(item.url)"
+                  mode="aspectFill"
+                  class="h-full w-full"
+                />
+                <view
+                  v-if="item.type === 'video'"
+                  class="absolute inset-0 flex items-center justify-center"
+                >
+                  <view class="i-carbon-play-circle text-24px text-white" />
+                  <text
+                    v-if="item.duration"
+                    class="absolute bottom-1 right-1 rounded bg-black/60 px-1 text-2.5 text-white"
+                  >
+                    {{ formatDuration(item.duration) }}
+                  </text>
+                </view>
+              </view>
+              <text
+                v-if="item.description"
+                class="block whitespace-pre-wrap px-2.5 py-2 text-3 text-sub leading-5"
+              >
+                {{ item.description }}
+              </text>
+            </view>
+          </view>
+          <view
+            v-if="detail.media.length > GALLERY_PREVIEW_LIMIT && !galleryExpanded"
+            class="text-primary-soft-text mt-3 text-center text-3.5"
+            @click="galleryExpanded = true"
+          >
+            查看全部 {{ detail.media.length }} 项
           </view>
         </view>
       </view>
@@ -388,6 +538,29 @@ onUnload(() => {
           {{ registerClosedReason || (myReg?.status === 'cancelled' ? '重新报名' : '立即报名') }}
         </button>
       </template>
+    </view>
+
+    <!-- 视频播放弹层 -->
+    <view
+      v-if="playingVideo"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
+      @click.self="closeVideo"
+    >
+      <view class="relative w-full">
+        <video
+          :src="resolveMediaUrl(playingVideo.url)"
+          controls
+          autoplay
+          class="w-full"
+          style="height: 220px"
+        />
+        <view
+          class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center rounded-full bg-black/60"
+          @click="closeVideo"
+        >
+          <view class="i-carbon-close text-16px text-white" />
+        </view>
+      </view>
     </view>
   </view>
 </template>

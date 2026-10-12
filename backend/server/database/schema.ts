@@ -144,5 +144,27 @@ export const activityRegistration = pgTable(
   t => [unique('activity_registration_activity_user_unique').on(t.activityId, t.userId)]
 )
 
+/**
+ * 活动相册关联：一个活动挂多条媒体（image/video），每条带选填描述。
+ * (activity_id, media_id) 唯一防重复挂载；删活动级联清理，删媒体被 restrict 拦截（配合 ref_count 护栏）。
+ */
+export const activityMedia = pgTable(
+  'activity_media',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    activityId: text('activity_id')
+      .notNull()
+      .references(() => activity.id, { onDelete: 'cascade' }),
+    mediaId: text('media_id')
+      .notNull()
+      .references(() => mediaFile.id, { onDelete: 'restrict' }),
+    description: text('description').notNull().default(''),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  t => [unique('activity_media_activity_media_unique').on(t.activityId, t.mediaId)]
+)
+
 // Better Auth 四张表
 export { account, session, user, verification } from './auth-schema'

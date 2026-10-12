@@ -42,6 +42,18 @@ export interface RegistrationRow {
   cancelledAt: string | null
 }
 
+/** 活动相册项（后端 toActivityMediaView 裁剪后的白名单字段）。 */
+export interface ActivityMediaItem {
+  id: string
+  url: string
+  type: 'image' | 'video'
+  description: string
+  duration?: number
+  width?: number
+  height?: number
+  createdAt: string
+}
+
 /** 活动详情/列表项（后端 toActivityView）。列表与详情同构，游客 myRegistration=null。 */
 export interface ActivityView {
   id: string
@@ -63,6 +75,7 @@ export interface ActivityView {
   checkedInCount: number
   remaining: number | null
   myRegistration: RegistrationRow | null
+  media: ActivityMediaItem[]
 }
 
 /** 组织者名单行（join 用户摘要，含完整手机号）。 */
@@ -189,4 +202,28 @@ export function listRegistrations(id: string, page: number, pageSize = 20): Prom
 /** 现场手动补签。 */
 export function manualCheckIn(activityId: string, userId: string): Promise<RegistrationRow> {
   return http.Post(`/activities/${activityId}/manual-check-in`, { userId }) as unknown as Promise<RegistrationRow>
+}
+
+// ===== 相册（组织者） =====
+
+/** 绑定媒体到活动相册（重复 409、类型不符 422，拦截器 toast）。 */
+export function bindActivityMedia(
+  id: string,
+  payload: { mediaId: string, description?: string },
+): Promise<ActivityMediaItem> {
+  return http.Post(`/activities/${id}/media`, payload) as unknown as Promise<ActivityMediaItem>
+}
+
+/** 更新相册项描述（空串清空）。 */
+export function updateActivityMedia(
+  id: string,
+  mediaId: string,
+  description: string,
+): Promise<ActivityMediaItem> {
+  return http.Patch(`/activities/${id}/media/${mediaId}`, { description }) as unknown as Promise<ActivityMediaItem>
+}
+
+/** 移除相册项（媒体文件保留）。 */
+export function removeActivityMedia(id: string, mediaId: string): Promise<void> {
+  return http.Delete(`/activities/${id}/media/${mediaId}`) as unknown as Promise<void>
 }

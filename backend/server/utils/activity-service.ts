@@ -20,9 +20,18 @@ import {
   type ActivityStateFilter,
   type RegistrationRow
 } from '../database/repositories/activities'
-import type { ActivityCreateBody, ActivityUpdateBody } from '../schemas/activity'
+import type { ActivityCreateBody, ActivityMediaBindBody, ActivityUpdateBody } from '../schemas/activity'
 import { collectTimeIssues } from '../schemas/activity'
+import {
+  deleteActivityMediaRow,
+  getActivityMediaRow,
+  insertActivityMedia,
+  listActivityMedia,
+  updateActivityMediaDescription
+} from '../database/repositories/activity-media'
+import { adjustRefCount, getMediaFileById } from '../database/repositories/media'
 import { getCurrentCheckinCode, verifyCheckinCode } from './checkin-code'
+import { toActivityMediaView, type ActivityMediaItemView } from './activity-media'
 
 /** 签到开放提前量：活动开始前 15 分钟。 */
 const CHECKIN_LEAD_MS = 15 * 60_000
@@ -48,7 +57,8 @@ function toActivityView(
   activity: ActivityRow,
   stat: { registeredCount: number, checkedInCount: number },
   now: Date,
-  myRegistration: RegistrationRow | null
+  myRegistration: RegistrationRow | null,
+  media: ActivityMediaItemView[] = []
 ) {
   return {
     id: activity.id,
@@ -69,7 +79,8 @@ function toActivityView(
     registeredCount: stat.registeredCount,
     checkedInCount: stat.checkedInCount,
     remaining: remaining(activity.capacity, stat.registeredCount),
-    myRegistration
+    myRegistration,
+    media
   }
 }
 
@@ -108,9 +119,12 @@ export async function getActivityDetail(
   now: Date = new Date()
 ) {
   const activity = await requireActivity(id)
-  const stat = await getActivityStat(id)
+  const [stat, mediaRows] = await Promise.all([
+    getActivityStat(id),
+    listActivityMedia(id)
+  ])
   const myRegistration = viewerId ? await getRegistration(id, viewerId) : null
-  return toActivityView(activity, stat, now, myRegistration)
+  return toActivityView(activity, stat, now, myRegistration, mediaRows.map(toActivityMediaView))
 }
 
 // ===== 组织者写操作 =====
@@ -338,4 +352,56 @@ export async function listMineView(userId: string, page: number, pageSize: numbe
     )
   }))
   return { data, total }
+}
+
+// ===== 相册（组织者写操作） =====
+
+export async function bindActivityMedia(activityId: string, input: ActivityMediaBindBody) {
+  await requireActivity(activityId)
+
+  const media = await getMediaFileById(input.mediaId)
+  if (!media) throw createApiError('NOT_FOUND', { message: '媒体不存在' })
+  if (media.type !== 'image' && media.type !== 'video') {
+    throw createApiError('VALIDATION_ERROR', { message: '仅支持图片或视频入相册' })
+  }
+
+  const existing = await getActivityMediaRow(activityId, media.id)
+  if (existing) throw createApiError('CONFLICT', { message: '该媒体已挂载到此活动' })
+
+  // 关联行写入 + ref_count +1 必须同事务：中途失败不得留下计数漂移，
+  // 否则 ref_count 偏低会让仍被相册引用的媒体被孤儿清理误删（相册裂图）
+  const link = await db.transaction(async (tx) => {
+    const row = await insertActivityMedia({
+      activityId,
+      mediaId: media.id,
+      description: input.description
+    }, tx)
+    await adjustRefCount(media.id, 1, tx)
+    return row
+  })
+  return toActivityMediaView({ link, media })
+}
+
+export async function setActivityMediaDescription(
+  activityId: string,
+  mediaId: string,
+  description: string
+) {
+  await requireActivity(activityId)
+  const link = await updateActivityMediaDescription(activityId, mediaId, description)
+  if (!link) throw createApiError('NOT_FOUND', { message: '相册项不存在' })
+  const media = await getMediaFileById(mediaId)
+  // link 存在即 FK 成立（media_id references media_file），media 必不为 null
+  return toActivityMediaView({ link, media: media! })
+}
+
+export async function removeActivityMedia(activityId: string, mediaId: string) {
+  await requireActivity(activityId)
+  // 关联行删除 + ref_count -1 同事务：避免删除已落库但计数未减（或反之）造成计数漂移
+  await db.transaction(async (tx) => {
+    const link = await deleteActivityMediaRow(activityId, mediaId, tx)
+    if (!link) throw createApiError('NOT_FOUND', { message: '相册项不存在' })
+    // media_file 行保留，孤儿文件由 ref_count 护栏体系（admin 媒体管理）兜底
+    await adjustRefCount(mediaId, -1, tx)
+  })
 }

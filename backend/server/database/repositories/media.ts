@@ -2,6 +2,7 @@ import { and, count, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm'
 import { db } from '../client'
 import { mediaFile as mediaTable, type mediaFile } from '../schema'
 import type { MediaMetadata, MediaType } from '../../utils/media'
+import type { DbExecutor } from './activities'
 
 export type MediaFileRow = typeof mediaFile.$inferSelect
 export type NewMediaFile = typeof mediaFile.$inferInsert
@@ -70,9 +71,14 @@ export async function deleteMediaFileById(id: string): Promise<MediaFileRow | nu
 /**
  * 内部维护引用计数（不对应任何 HTTP 接口）。
  * SQL 层 greatest(0, ...) 钳底，不允许出现负值。
+ * 与关联行写入/删除需同事务时传入 tx，否则计数漂移会使 ref_count 护栏失效。
  */
-export async function adjustRefCount(id: string, delta: number): Promise<MediaFileRow | null> {
-  const rows = await db
+export async function adjustRefCount(
+  id: string,
+  delta: number,
+  executor: DbExecutor = db
+): Promise<MediaFileRow | null> {
+  const rows = await executor
     .update(mediaTable)
     .set({ refCount: sql`greatest(0, ${mediaTable.refCount} + ${delta})` })
     .where(eq(mediaTable.id, id))

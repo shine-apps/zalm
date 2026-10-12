@@ -107,6 +107,30 @@ export const activityIdParamSchema = z.object({
   id: z.string().uuid()
 })
 
+/** 相册描述：选填，≤200 字（绑定时缺省为空串，更新时必填但允许空串清空）。 */
+const activityMediaDescriptionSchema = z.string().max(200, '描述不能超过 200 字')
+
+export const activityMediaBindBodySchema = z
+  .object({
+    mediaId: z.string().uuid(),
+    description: activityMediaDescriptionSchema.default('')
+  })
+  .strict()
+
+export const activityMediaUpdateBodySchema = z
+  .object({
+    description: activityMediaDescriptionSchema
+  })
+  .strict()
+
+/** 嵌套路由参数：/activities/:id/media/:mediaId */
+export const activityMediaParamsSchema = z.object({
+  id: z.string().uuid(),
+  mediaId: z.string().uuid()
+})
+
+export type ActivityMediaBindBody = z.infer<typeof activityMediaBindBodySchema>
+
 export const checkInBodySchema = z
   .object({
     code: z.string().regex(/^\d{6}$/, '请输入 6 位数字签到码')

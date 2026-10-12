@@ -3,6 +3,8 @@ import {
   activityCreateBodySchema,
   activityListQuerySchema,
   activityLocationSchema,
+  activityMediaBindBodySchema,
+  activityMediaUpdateBodySchema,
   checkInBodySchema,
   collectTimeIssues,
   manualCheckInBodySchema
@@ -134,5 +136,44 @@ describe('other activity schemas', () => {
     expect(q.state).toBe('active')
     expect(q.page).toBe(2)
     expect(activityListQuerySchema.parse({ state: 'past' }).state).toBe('past')
+  })
+})
+
+describe('activityMediaBindBodySchema', () => {
+  const mediaId = '123e4567-e89b-42d3-a456-426614174000'
+
+  it('accepts mediaId without description (defaults to empty)', () => {
+    const parsed = activityMediaBindBodySchema.parse({ mediaId })
+    expect(parsed.description).toBe('')
+  })
+
+  it('accepts an optional description within 200 chars', () => {
+    const parsed = activityMediaBindBodySchema.parse({ mediaId, description: '现场合影' })
+    expect(parsed.description).toBe('现场合影')
+  })
+
+  it('rejects missing or non-uuid mediaId', () => {
+    expect(activityMediaBindBodySchema.safeParse({}).success).toBe(false)
+    expect(activityMediaBindBodySchema.safeParse({ mediaId: 'not-a-uuid' }).success).toBe(false)
+  })
+
+  it('rejects description over 200 chars and unknown fields', () => {
+    expect(
+      activityMediaBindBodySchema.safeParse({ mediaId, description: 'x'.repeat(201) }).success
+    ).toBe(false)
+    expect(activityMediaBindBodySchema.safeParse({ mediaId, extra: 1 }).success).toBe(false)
+  })
+})
+
+describe('activityMediaUpdateBodySchema', () => {
+  it('accepts empty description (clearing)', () => {
+    expect(activityMediaUpdateBodySchema.parse({ description: '' }).description).toBe('')
+  })
+
+  it('rejects missing or overlong description', () => {
+    expect(activityMediaUpdateBodySchema.safeParse({}).success).toBe(false)
+    expect(
+      activityMediaUpdateBodySchema.safeParse({ description: 'x'.repeat(201) }).success
+    ).toBe(false)
   })
 })

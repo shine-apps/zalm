@@ -195,7 +195,7 @@ onReachBottom(() => {
               <text
                 v-for="c in a.categories"
                 :key="c"
-                class="mr-1 rounded bg-primary-soft px-1.5 py-0.5 text-2.5 text-primary-soft-text"
+                class="text-primary-soft-text mr-1 rounded bg-primary-soft px-1.5 py-0.5 text-2.5"
               >
                 {{ c }}
               </text>
