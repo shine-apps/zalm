@@ -37,7 +37,7 @@ const tab = ref<LoginTab>('email')
 // 邮箱密码
 // 本地联调预填初始管理员账号（生产请勿预填）
 const email = ref('admin@zhongailianmeng.local')
-const password = ref('Admin12345')
+const password = ref('ChangeMe123')
 const submitting = ref(false)
 
 // 手机号验证码

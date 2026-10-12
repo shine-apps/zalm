@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import type { ActivityMediaItem, ActivityView } from '@/api/activity'
-import type { MediaItem } from '@/api/media'
 import {
-  bindActivityMedia,
   cancelActivity as cancelActivityApi,
   cancelMyRegistration,
   getActivity,
@@ -152,6 +150,10 @@ function goRegistrations() {
   uni.navigateTo({ url: `/pages/activity/registrations?id=${activityId.value}` })
 }
 
+function goMedia() {
+  uni.navigateTo({ url: `/pages/activity/media?id=${activityId.value}` })
+}
+
 function doCancelActivity() {
   uni.showModal({
     title: '取消活动',
@@ -187,40 +189,6 @@ async function submitCancelActivity() {
 const GALLERY_PREVIEW_LIMIT = 12
 const galleryExpanded = ref(false)
 const playingVideo = ref<ActivityMediaItem | null>(null)
-
-/** 本页上传区（组织者）。 */
-const showUploader = ref(false)
-const albumUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
-/** 已尝试绑定的媒体 id（change 事件随进度深监听高频触发，防止重复提交）。 */
-const processedIds = new Set<string>()
-
-/**
- * 上传完成即绑定：等本轮全部上传结束（无 uploading）后批量 POST，
- * 成功后重置 uploader 暂存区并刷新详情（相册列表随之更新）。
- */
-async function onUploadChange(items: MediaItem[]) {
-  if (items.some(i => i.status === 'uploading'))
-    return
-  let attempted = false
-  for (const item of items) {
-    if (item.status !== 'done' || item.id.startsWith('local-') || processedIds.has(item.id))
-      continue
-    processedIds.add(item.id)
-    attempted = true
-    try {
-      await bindActivityMedia(activityId.value, { mediaId: item.id, description: '' })
-    }
-    catch {
-      // 409（已挂载）静默；其余错误拦截器已 toast
-    }
-  }
-  if (!items.some(i => i.status === 'error')) {
-    albumUploader.value?.reset()
-    processedIds.clear()
-  }
-  if (attempted)
-    await load()
-}
 
 const galleryImages = computed(() =>
   (detail.value?.media ?? []).filter(m => m.type === 'image'),
@@ -389,7 +357,7 @@ onUnload(() => {
             </view>
             <view
               class="text-primary-soft-text mb-2 mr-3 flex items-center rounded-full bg-primary-soft px-4 py-1.5 text-3.5"
-              @click="showUploader = !showUploader"
+              @click="goMedia"
             >
               <view class="i-carbon-cloud-upload mr-1 text-14px" /> 上传相册
             </view>
@@ -399,20 +367,6 @@ onUnload(() => {
               @click="doCancelActivity"
             >
               <view class="i-carbon-stop-sign mr-1 text-14px" /> 取消活动
-            </view>
-          </view>
-
-          <!-- 本页上传区 -->
-          <view v-if="showUploader" class="mt-2 border-t border-line pt-3">
-            <text class="text-3 text-muted">上传完成后自动加入下方活动相册</text>
-            <view class="mt-2">
-              <media-uploader
-                ref="albumUploader"
-                type="mixed"
-                multiple
-                :max-count="9"
-                @change="onUploadChange"
-              />
             </view>
           </view>
         </view>

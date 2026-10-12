@@ -4,10 +4,11 @@ import type { ScopedCredential } from '@/api/media'
 /**
  * 构造 COS PostObject（multipart 表单上传）所需的签名字段。
  * 适用于 uni.uploadFile：H5 / 微信小程序同构。
- * 依据腾讯云 POST Object 文档：
+ * 依据腾讯云 POST Object 文档（cloud.tencent.com/document/product/436/14690）：
  * - policy 为 Base64 编码的策略 JSON；
  * - SignKey = HmacSHA1(KeyTime, TmpSecretKey)；
- * - Signature = HmacSHA1(policyBase64, SignKey)；
+ * - StringToSign = SHA1(policy 文本)（注意：不是 Base64(policy)）；
+ * - Signature = HmacSHA1(StringToSign, SignKey)；
  * - 临时凭证必带 x-cos-security-token。
  */
 export function buildPostFormFields(
@@ -32,11 +33,13 @@ export function buildPostFormFields(
     ],
   }
 
+  const policyText = JSON.stringify(policy)
   const policyB64 = CryptoJS.enc.Base64.stringify(
-    CryptoJS.enc.Utf8.parse(JSON.stringify(policy)),
+    CryptoJS.enc.Utf8.parse(policyText),
   )
   const signKey = CryptoJS.HmacSHA1(keyTime, credential.tmpSecretKey).toString()
-  const signature = CryptoJS.HmacSHA1(policyB64, signKey).toString()
+  const stringToSign = CryptoJS.SHA1(policyText).toString()
+  const signature = CryptoJS.HmacSHA1(stringToSign, signKey).toString()
 
   return {
     key,

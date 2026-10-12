@@ -93,10 +93,18 @@ function chooseCover() {
 }
 
 async function onCoverChange(items: MediaItem[]) {
+  // 空数组守卫：reset() 换新空数组会再次触发 change，防止对 [] 重复 reset 失控循环
+  if (!items.length)
+    return
   const file = items[0]
-  if (file && file.status === 'done')
+  if (file?.status === 'done') {
     form.value.coverUrl = file.url
-  coverUploader.value?.reset()
+    coverUploader.value?.reset()
+  }
+  else if (file?.status === 'error') {
+    // bare 模式没有重试 UI，清掉失败占位，允许重新选择封面
+    coverUploader.value?.reset()
+  }
 }
 
 function removeCover() {

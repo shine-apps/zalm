@@ -49,7 +49,9 @@ async function load() {
  * 存在失败项时保留暂存区供重试（与列表暂时重复显示，重试成功后自愈）。
  */
 async function onUploadChange(items: MediaItem[]) {
-  if (items.some(i => i.status === 'uploading'))
+  // 空数组守卫：reset() 会把 items 换成新空数组并再次触发 change，
+  // 若不拦截会对 [] 重复 reset 形成失控循环，卡死 flush 令 load() 无法完成。
+  if (!items.length || items.some(i => i.status === 'uploading'))
     return
   let attempted = false
   for (const item of items) {
