@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import type { MediaItem, MediaType } from '@/api/media'
+import type { MediaItem } from '@/api/media'
 import { uploadMedia } from '@/utils/upload-media'
+
+/** 支持的上传形态：纯图片、纯视频、图片视频混合。 */
+type UploaderType = 'image' | 'video' | 'mixed'
+/** 单个文件的实际媒体类型。 */
+type FileKind = 'image' | 'video'
 
 interface PendingSource {
   kind: 'h5' | 'mp'
+  mediaType: FileKind
   file?: File // H5
   path?: string // 小程序临时路径
   name: string
@@ -15,7 +21,7 @@ interface PendingSource {
 }
 
 const props = withDefaults(defineProps<{
-  type: MediaType
+  type: UploaderType
   modelValue?: MediaItem[]
   multiple?: boolean
   maxCount?: number
@@ -35,8 +41,8 @@ const emit = defineEmits<{
   'change': [items: MediaItem[]]
 }>()
 
-/** 各类型 UI 常量。 */
-const TYPE_UI: Record<MediaType, {
+/** 各媒体类型的 UI 常量。 */
+const TYPE_UI: Record<FileKind, {
   accept: string
   extensions: string[]
   hint: string
@@ -57,24 +63,24 @@ const TYPE_UI: Record<MediaType, {
     maxBytes: 500 * 1024 * 1024,
     defaultMime: 'video/mp4',
   },
-  audio: {
-    accept: 'audio/mpeg,audio/wav,audio/aac,audio/mp4',
-    extensions: ['mp3', 'm4a', 'wav', 'aac'],
-    hint: '点击上传音频，支持 mp3 / wav / m4a，单个 ≤50MB（小程序从聊天记录选择）',
-    maxBytes: 50 * 1024 * 1024,
-    defaultMime: 'audio/mpeg',
-  },
-  file: {
-    accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.txt',
-    extensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip', 'txt'],
-    hint: '点击上传文件，支持 pdf / doc / xls / zip，单个 ≤50MB（小程序从聊天记录选择）',
-    maxBytes: 50 * 1024 * 1024,
-    defaultMime: 'application/octet-stream',
-  },
 }
 
 const effectiveMaxCount = computed(() => props.maxCount ?? (props.multiple ? 9 : 1))
-const ui = computed(() => TYPE_UI[props.type])
+
+/** H5 文件选择 accept：混合模式合并图片与视频。 */
+const effectiveAccept = computed(() => props.type === 'mixed'
+  ? `${TYPE_UI.image.accept},${TYPE_UI.video.accept}`
+  : TYPE_UI[props.type].accept)
+
+const effectiveHint = computed(() => {
+  if (props.type === 'mixed')
+    return '点击上传图片或视频，图片 jpg / png / webp / gif ≤10MB，视频 mp4 / mov / webm ≤500MB'
+  return TYPE_UI[props.type].hint
+})
+
+const triggerTitle = computed(() => props.type === 'mixed'
+  ? '上传图片或视频'
+  : props.type === 'image' ? '上传图片' : '上传视频')
 
 // ---- v-model 同步 ----
 const items = ref<MediaItem[]>([...props.modelValue])
@@ -96,19 +102,6 @@ function makeTempId(): string {
   return `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-function formatSize(bytes?: number): string {
-  if (!bytes || bytes <= 0)
-    return '—'
-  const units = ['B', 'KB', 'MB', 'GB']
-  let value = bytes
-  let i = 0
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024
-    i += 1
-  }
-  return `${value >= 100 || i === 0 ? Math.round(value) : value.toFixed(1)} ${units[i]}`
-}
-
 function localPreviewUrl(source: PendingSource): string {
   let url = ''
   // #ifdef H5
@@ -120,6 +113,23 @@ function localPreviewUrl(source: PendingSource): string {
   return url
 }
 
+/** H5：按 MIME 判定媒体类型，非图片/视频返回 null。 */
+function detectH5Kind(file: File): FileKind | null {
+  if (file.type.startsWith('image/'))
+    return 'image'
+  if (file.type.startsWith('video/'))
+    return 'video'
+  return null
+}
+
+/** 小程序：优先 chooseMedia 返回的 fileType，缺失时按扩展名兜底。 */
+function detectMpKind(tempFilePath: string, fileType?: string): FileKind {
+  if (fileType === 'image' || fileType === 'video')
+    return fileType
+  const ext = (tempFilePath.split('.').pop() || '').toLowerCase()
+  return TYPE_UI.image.extensions.includes(ext) ? 'image' : 'video'
+}
+
 // H5 隐藏 input（命令式创建：避免模板中 input[type=file] 与 uniapp input 类型冲突）
 let h5Input: HTMLInputElement | null = null
 
@@ -129,8 +139,8 @@ function onTrigger() {
     return
   // #ifdef H5
   if (h5Input) {
-    h5Input.accept = ui.value.accept
-    h5Input.multiple = props.multiple
+    h5Input.accept = effectiveAccept.value
+    h5Input.multiple = props.multiple || props.type === 'mixed'
     h5Input.click()
   }
   // #endif
@@ -142,59 +152,54 @@ function onTrigger() {
 function onInputChange(event: Event) {
   const input = event.target as HTMLInputElement
   if (input.files?.length) {
-    const sources: PendingSource[] = Array.from(input.files).map(file => ({
-      kind: 'h5',
-      file,
-      name: file.name,
-      size: file.size,
-      contentType: file.type || ui.value.defaultMime,
-    }))
+    const sources: PendingSource[] = []
+    for (const file of Array.from(input.files)) {
+      const mediaType = detectH5Kind(file)
+      if (!mediaType) {
+        uni.showToast({ title: '仅支持图片或视频', icon: 'none' })
+        continue
+      }
+      sources.push({
+        kind: 'h5',
+        mediaType,
+        file,
+        name: file.name,
+        size: file.size,
+        contentType: file.type || TYPE_UI[mediaType].defaultMime,
+      })
+    }
     void enqueue(sources)
   }
   input.value = ''
 }
 
-// 小程序选择
+// 小程序选择（统一 chooseMedia：支持图片视频混合）
 function chooseMp(): Promise<void> {
   const count = effectiveMaxCount.value - items.value.length
-  if (props.type === 'image' || props.type === 'video') {
-    return new Promise((resolve) => {
-      uni.chooseMedia({
-        count,
-        mediaType: [props.type as 'image' | 'video'],
-        sourceType: ['album', 'camera'],
-        ...(props.type === 'video' ? { maxDuration: 60 } : {}),
-        success: (res) => {
-          const sources: PendingSource[] = res.tempFiles.map(f => ({
+  const mediaType: Array<'image' | 'video'> = props.type === 'mixed'
+    ? ['image', 'video']
+    : [props.type]
+  return new Promise((resolve) => {
+    uni.chooseMedia({
+      count,
+      mediaType,
+      sourceType: ['album', 'camera'],
+      ...(mediaType.includes('video') ? { maxDuration: 60 } : {}),
+      success: (res) => {
+        const sources: PendingSource[] = res.tempFiles.map((f) => {
+          const kind = detectMpKind(f.tempFilePath, f.fileType)
+          return {
             kind: 'mp',
+            mediaType: kind,
             path: f.tempFilePath,
-            name: f.tempFilePath.split('/').pop() || `${props.type}-${Date.now()}`,
+            name: f.tempFilePath.split('/').pop() || `${kind}-${Date.now()}`,
             size: f.size,
-            contentType: ui.value.defaultMime,
+            contentType: TYPE_UI[kind].defaultMime,
             ...(f.width ? { width: f.width } : {}),
             ...(f.height ? { height: f.height } : {}),
             ...(f.duration ? { duration: Math.round(f.duration) } : {}),
-          }))
-          void enqueue(sources)
-          resolve()
-        },
-        fail: () => resolve(),
-      })
-    })
-  }
-  return new Promise((resolve) => {
-    uni.chooseMessageFile({
-      count,
-      type: 'file',
-      ...(props.type === 'audio' ? { extension: ui.value.extensions } : {}),
-      success: (res) => {
-        const sources: PendingSource[] = res.tempFiles.map(f => ({
-          kind: 'mp',
-          path: f.path,
-          name: f.name,
-          size: f.size,
-          contentType: ui.value.defaultMime,
-        }))
+          }
+        })
         void enqueue(sources)
         resolve()
       },
@@ -206,7 +211,7 @@ function chooseMp(): Promise<void> {
 async function enqueue(sources: PendingSource[]) {
   const room = effectiveMaxCount.value - items.value.length
   for (const source of sources.slice(0, room)) {
-    if (source.size > ui.value.maxBytes) {
+    if (source.size > TYPE_UI[source.mediaType].maxBytes) {
       uni.showToast({ title: `「${source.name}」大小超限`, icon: 'none' })
       continue
     }
@@ -215,7 +220,7 @@ async function enqueue(sources: PendingSource[]) {
     items.value.push({
       id: tempId,
       url: localPreviewUrl(source),
-      type: props.type,
+      type: source.mediaType,
       metadata: {
         name: source.name,
         size: source.size,
@@ -236,7 +241,7 @@ async function process(tempId: string) {
 
   try {
     const row = await uploadMedia(
-      { ...source, type: props.type },
+      { ...source, type: source.mediaType },
       {
         onProgress: (progress) => {
           const target = items.value.find(i => i.id === tempId)
@@ -280,10 +285,6 @@ function retry(tempId: string) {
   void process(tempId)
 }
 
-// ---- 音频播放（声明在前：removeItem 需要引用）----
-let audioCtx: UniApp.InnerAudioContext | null = null
-const playingId = ref('')
-
 function removeItem(id: string) {
   const idx = items.value.findIndex(i => i.id === id)
   if (idx < 0)
@@ -293,34 +294,7 @@ function removeItem(id: string) {
     URL.revokeObjectURL(items.value[idx]!.url)
   // #endif
   pendingSources.delete(id)
-  if (playingId.value === id) {
-    audioCtx?.destroy()
-    audioCtx = null
-    playingId.value = ''
-  }
   items.value.splice(idx, 1)
-}
-
-function togglePlay(item: MediaItem) {
-  if (item.status !== 'done')
-    return
-  if (playingId.value === item.id && audioCtx) {
-    audioCtx.pause()
-    playingId.value = ''
-    return
-  }
-  audioCtx?.destroy()
-  const ctx = uni.createInnerAudioContext()
-  ctx.src = item.url
-  ctx.onEnded(() => {
-    playingId.value = ''
-  })
-  ctx.onError(() => {
-    playingId.value = ''
-  })
-  ctx.play()
-  audioCtx = ctx
-  playingId.value = item.id
 }
 
 onMounted(() => {
@@ -334,7 +308,6 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  audioCtx?.destroy()
   // #ifdef H5
   h5Input?.remove()
   h5Input = null
@@ -359,29 +332,32 @@ defineExpose({
       @click="onTrigger"
     >
       <text class="i-carbon-cloud-upload text-28px text-muted" />
-      <text class="text-sm font-medium">
-        {{ type === 'image' ? '上传图片' : type === 'video' ? '上传视频' : type === 'audio' ? '上传音频' : '上传文件' }}
-      </text>
-      <text class="text-xs text-muted">{{ ui.hint }}</text>
+      <text class="text-sm font-medium">{{ triggerTitle }}</text>
+      <text class="text-xs text-muted">{{ effectiveHint }}</text>
     </view>
 
-    <!-- 图片网格 -->
-    <view
-      v-if="!bare && type === 'image' && items.length"
-      class="grid grid-cols-3 mt-4 gap-3"
-    >
+    <!-- 媒体网格（图片 / 视频混合） -->
+    <view v-if="!bare && items.length" class="grid grid-cols-3 mt-4 gap-3">
       <view
         v-for="item in items"
         :key="item.id"
         class="relative aspect-[4/3] overflow-hidden border rounded-lg"
         :class="item.status === 'error' ? 'border-danger' : 'border-line'"
       >
-        <image
-          v-if="item.status !== 'error'"
-          :src="item.url"
-          mode="aspectFill"
-          class="h-full w-full"
-        />
+        <template v-if="item.status !== 'error'">
+          <image
+            v-if="item.type === 'image'"
+            :src="item.url"
+            mode="aspectFill"
+            class="h-full w-full"
+          />
+          <view v-else class="h-full w-full flex flex-col items-center justify-center gap-1 bg-black">
+            <text class="i-carbon-play-filled text-24px text-white/80" />
+            <text v-if="item.metadata.duration" class="text-10px text-white/70">
+              {{ item.metadata.duration }}s
+            </text>
+          </view>
+        </template>
         <view v-else class="h-full w-full flex flex-col items-center justify-center gap-1 bg-danger-soft">
           <text class="i-carbon-warning-alt text-20px text-danger" />
           <text class="text-xs text-primary font-medium" @click="retry(item.id)">重试</text>
@@ -399,111 +375,6 @@ defineExpose({
         >
           <text class="i-carbon-close text-12px text-sub" />
         </view>
-      </view>
-    </view>
-
-    <!-- 视频 -->
-    <view v-if="!bare && type === 'video'" class="mt-4 space-y-3">
-      <view
-        v-for="(item, idx) in items"
-        :key="item.id"
-        class="overflow-hidden border border-line rounded-lg"
-      >
-        <video
-          v-if="item.status !== 'error'"
-          :id="`video-${idx}`"
-          :src="item.url"
-          class="w-full bg-black"
-          style="height: 200px"
-        />
-        <view v-else class="flex items-center justify-between gap-2 bg-danger-soft px-3 py-4">
-          <text class="text-sm text-danger">{{ item.errorMessage || '上传失败' }}</text>
-          <text class="text-xs text-primary font-medium" @click="retry(item.id)">重试</text>
-        </view>
-        <view class="flex items-center justify-between gap-2 px-3 py-2">
-          <text class="truncate text-xs text-muted">
-            {{ item.metadata.name }} · {{ formatSize(item.metadata.size)
-            }}<template v-if="item.metadata.duration"> · {{ item.metadata.duration }}s</template>
-          </text>
-          <text
-            v-if="!disabled"
-            class="i-carbon-trash-can text-16px text-muted"
-            @click="removeItem(item.id)"
-          />
-        </view>
-      </view>
-    </view>
-
-    <!-- 音频 -->
-    <view v-if="!bare && type === 'audio'" class="mt-4 space-y-2">
-      <view
-        v-for="item in items"
-        :key="item.id"
-        class="flex flex-wrap items-center gap-3 border border-line rounded-lg p-3"
-      >
-        <template v-if="item.status !== 'error'">
-          <text class="i-carbon-music text-20px text-muted" />
-          <view
-            class="h-8 w-8 flex items-center justify-center rounded-full bg-primary-soft"
-            @click="togglePlay(item)"
-          >
-            <text
-              :class="playingId === item.id ? 'i-carbon-pause-filled' : 'i-carbon-play-filled'"
-              class="text-primary-soft-text text-16px"
-            />
-          </view>
-        </template>
-        <template v-else>
-          <text class="i-carbon-warning-alt text-20px text-danger" />
-          <text class="flex-1 text-sm text-danger">{{ item.errorMessage || '上传失败' }}</text>
-          <text class="text-xs text-primary font-medium" @click="retry(item.id)">重试</text>
-        </template>
-        <text class="ml-auto text-xs text-muted">
-          {{ item.metadata.name }} · {{ formatSize(item.metadata.size)
-          }}<template v-if="item.metadata.duration"> · {{ item.metadata.duration }}s</template>
-        </text>
-        <text
-          v-if="!disabled"
-          class="i-carbon-trash-can text-16px text-muted"
-          @click="removeItem(item.id)"
-        />
-      </view>
-    </view>
-
-    <!-- 文件列表 -->
-    <view v-if="!bare && type === 'file'" class="mt-4 space-y-2">
-      <view
-        v-for="item in items"
-        :key="item.id"
-        class="flex items-center gap-3 border rounded-lg px-3 py-2"
-        :class="item.status === 'error'
-          ? 'border-danger bg-danger-soft'
-          : 'border-line'"
-      >
-        <text
-          :class="item.status === 'error' ? 'i-carbon-warning-alt text-danger' : 'i-carbon-document text-muted'"
-          class="text-20px"
-        />
-        <view class="min-w-0 flex-1">
-          <text class="block truncate text-sm font-medium">{{ item.metadata.name || '未命名' }}</text>
-          <text class="text-xs text-muted">
-            {{ formatSize(item.metadata.size) }}
-            <template v-if="item.status === 'uploading'"> · 上传中 {{ item.progress ?? 0 }}%</template>
-            <template v-else-if="item.status === 'error'"> · {{ item.errorMessage || '上传失败' }}</template>
-          </text>
-        </view>
-        <text
-          v-if="item.status === 'error'"
-          class="text-xs text-primary font-medium"
-          @click="retry(item.id)"
-        >
-          重试
-        </text>
-        <text
-          v-if="!disabled"
-          class="i-carbon-trash-can text-16px text-muted"
-          @click="removeItem(item.id)"
-        />
       </view>
     </view>
   </view>

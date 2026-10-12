@@ -17,8 +17,7 @@ const activityId = ref('')
 const media = ref<ActivityMediaItem[]>([])
 const loading = ref(false)
 
-const imageUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
-const videoUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
+const albumUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
 
 /** 已尝试绑定的媒体 id（change 事件随进度深监听高频触发，防止重复提交）。 */
 const processedIds = new Set<string>()
@@ -66,8 +65,7 @@ async function onUploadChange(items: MediaItem[]) {
     }
   }
   if (!items.some(i => i.status === 'error')) {
-    imageUploader.value?.reset()
-    videoUploader.value?.reset()
+    albumUploader.value?.reset()
     processedIds.clear()
   }
   if (attempted)
@@ -138,26 +136,14 @@ onLoad((options) => {
       </text>
     </view>
 
-    <!-- 图片上传 -->
+    <!-- 混合上传（图片 / 视频，单批最多 9 个） -->
     <view class="mt-3 rounded-3 bg-card p-4 shadow-sm">
-      <text class="text-4 text-ink font-medium">照片</text>
+      <text class="text-4 text-ink font-medium">上传照片或视频</text>
       <view class="mt-2">
         <media-uploader
-          ref="imageUploader"
-          type="image"
+          ref="albumUploader"
+          type="mixed"
           multiple
-          @change="onUploadChange"
-        />
-      </view>
-    </view>
-
-    <!-- 视频上传 -->
-    <view class="mt-3 rounded-3 bg-card p-4 shadow-sm">
-      <text class="text-4 text-ink font-medium">视频</text>
-      <view class="mt-2">
-        <media-uploader
-          ref="videoUploader"
-          type="video"
           :max-count="9"
           @change="onUploadChange"
         />

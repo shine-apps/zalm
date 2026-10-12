@@ -190,8 +190,7 @@ const playingVideo = ref<ActivityMediaItem | null>(null)
 
 /** 本页上传区（组织者）。 */
 const showUploader = ref(false)
-const imageUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
-const videoUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
+const albumUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
 /** 已尝试绑定的媒体 id（change 事件随进度深监听高频触发，防止重复提交）。 */
 const processedIds = new Set<string>()
 
@@ -216,8 +215,7 @@ async function onUploadChange(items: MediaItem[]) {
     }
   }
   if (!items.some(i => i.status === 'error')) {
-    imageUploader.value?.reset()
-    videoUploader.value?.reset()
+    albumUploader.value?.reset()
     processedIds.clear()
   }
   if (attempted)
@@ -409,16 +407,9 @@ onUnload(() => {
             <text class="text-3 text-muted">上传完成后自动加入下方活动相册</text>
             <view class="mt-2">
               <media-uploader
-                ref="imageUploader"
-                type="image"
+                ref="albumUploader"
+                type="mixed"
                 multiple
-                @change="onUploadChange"
-              />
-            </view>
-            <view class="mt-3">
-              <media-uploader
-                ref="videoUploader"
-                type="video"
                 :max-count="9"
                 @change="onUploadChange"
               />
