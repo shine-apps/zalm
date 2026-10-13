@@ -220,7 +220,7 @@ onLoad((options) => {
         <!-- 描述：修改按钮在最前，描述文本在后 -->
         <view class="flex items-start gap-2 px-2.5 py-2">  
           <text
-            class="min-w-0 flex-1 whitespace-pre-wrap break-words text-3.5 text-sub leading-5"
+            class="min-w-0 whitespace-pre-wrap break-words text-3.5 text-sub leading-5"
             :class="!item.description && 'text-muted'"
           >
             {{ item.description || '未添加描述' }}

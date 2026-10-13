@@ -1,0 +1,141 @@
+# 众爱联盟 全栈镜像 CI/CD
+#
+# 功能：
+#   - push 到 main/master、提 PR、推送 v*.*.* 标签时，使用仓库根目录 Dockerfile 构建镜像
+#   - PR 仅构建校验（不推送）；分支推送/标签推送时登录 ghcr.io 并推送多标签镜像
+#   - 基于 GitHub Actions cache（type=gha）缓存 Docker 层与包管理器缓存，加速重复构建
+#   - 构建失败通过 Slack 兼容 Webhook 通知（可选，配置 secrets.SLACK_WEBHOOK_URL 后生效）
+#   - 构建成功向 Job Summary 输出镜像标签与 digest
+#
+# 镜像标签规则（docker/metadata-action）：
+#   main 分支推送   → main、sha-<short-sha>、latest
+#   其他分支推送     → <branch-slug>、sha-<short-sha>
+#   PR              → pr-<编号>、sha-<short-sha>（仅构建，不推送）
+#   v1.2.3 标签     → 1.2.3、1.2、sha-<short-sha>、latest（若标签指向默认分支则带 latest）
+#
+# 可选仓库 Secrets：
+#   SLACK_WEBHOOK_URL  Slack 兼容的 incoming-webhook 地址（不配置则跳过外部通知，
+#                      GitHub 仍会按账号通知设置发送构建失败邮件）
+
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
+      - master
+
+# 同一 ref 的新运行自动排队；PR 上取消过时的运行，分支/标签推送不取消（保留发布产物）
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# GITHUB_TOKEN 默认权限最小化：读代码 + 向 ghcr.io 推送包
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tags: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ghcr.io 要求镜像名全小写（GITHUB_REPOSITORY 的 owner 可能含大写）
+      - name: Derive image name
+        id: img
+        run: echo "name=${REGISTRY}/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      # PR 来自 fork 时无 packages:write，且 PR 只做构建校验，故仅在非 PR 时登录
+      - name: Log in to container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.img.outputs.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          # 默认 target（runner）：内含后端 Nuxt 服务与 public/h5 下的 H5 静态应用
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # GHA 远端缓存：命中 Dockerfile 各阶段层（含 bun install），显著缩短构建时间
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # 失败通知（任一步骤失败均触发）。未配置 Webhook 时仅输出告警，不改变失败结论。
+      - name: Notify on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::warning::构建失败，但未配置 secrets.SLACK_WEBHOOK_URL，已跳过外部通知"
+            exit 0
+          fi
+          payload=$(cat <<EOF
+          {
+            "username": "GitHub Actions",
+            "icon_emoji": ":x:",
+            "text": "❌ Docker 镜像构建失败\n仓库: ${GITHUB_REPOSITORY}\n分支/引用: ${GITHUB_REF}\n提交: ${GITHUB_SHA}\n事件: ${GITHUB_EVENT_NAME}\n运行: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          }
+          EOF
+          )
+          curl --fail --silent --show-error \
+            -H 'Content-Type: application/json' \
+            -d "$payload" \
+            "$SLACK_WEBHOOK_URL"
+
+      - name: Success summary
+        if: success()
+        run: |
+          {
+            echo "## :white_check_mark: Docker 镜像构建成功"
+            echo ""
+            echo "- 镜像: \`${{ steps.img.outputs.name }}\`"
+            echo "- 事件: \`${GITHUB_EVENT_NAME}\` 引用: \`${GITHUB_REF}\`"
+            echo "- 提交: \`${GITHUB_SHA}\`"
+            echo "- Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo "- 标签:"
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Docker 镜像构建成功：${{ steps.img.outputs.name }} (${{ steps.build.outputs.digest }})"

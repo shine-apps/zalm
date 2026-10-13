@@ -1,0 +1,37 @@
+# 依赖与构建产物（容器内重新安装/重新构建）
+backend/node_modules
+frontend/node_modules
+backend/.nuxt
+backend/.output
+backend/.data
+frontend/dist
+frontend/unpackage
+**/coverage
+
+# 环境变量与密钥（后端运行时通过 --env-file 或 -e 注入，绝不进镜像）
+# 注意：frontend/env/ 是无密钥的构建配置（VITE_APP_PUBLIC_BASE 等），必须保留。
+backend/.env
+backend/.env.*
+!backend/.env.example
+/.env
+/.env.*
+
+# 本地可能残留的 H5 产物副本（构建期由 frontend-build 阶段注入）
+backend/public/h5
+
+# 版本控制与 CI
+.git
+.github
+
+# 日志与杂项
+*.log
+.DS_Store
+.vscode
+.idea
+.trae
+
+# 容器文件本身不需要递归进构建上下文
+Dockerfile
+.dockerignore
+backend/Dockerfile
+backend/.dockerignore

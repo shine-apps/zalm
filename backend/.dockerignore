@@ -1,0 +1,26 @@
+# 依赖与构建产物（容器内重新安装/构建）
+node_modules
+.nuxt
+.output
+.data
+dist
+coverage
+
+# 环境变量与密钥（运行时通过 --env-file 或 -e 注入，绝不进镜像）
+.env
+.env.*
+!.env.example
+
+# 版本控制与 CI
+.git
+.github
+
+# 日志与杂项
+*.log
+.DS_Store
+.vscode
+.idea
+
+# 容器文件本身不需要递归进构建上下文
+Dockerfile
+.dockerignore
