@@ -2,8 +2,11 @@
  * 进程内固定窗口限流（按 IP key，窗口 60s）。
  * - 全局 /api/**：RATE_LIMIT_GLOBAL_MAX（默认 300）
  * - 敏感端点（登录/注册/发 OTP/管理员创建用户）：RATE_LIMIT_SENSITIVE_MAX（默认 10）
+ * - 公开埋点（POST /api/share/events）：RATE_LIMIT_ANALYTICS_MAX（默认 30）
  * 后续如需分布式限流，可替换为 Redis 实现而不改调用方。
  */
+import { getRateLimitTier } from '../utils/rate-limit'
+
 const WINDOW_MS = 60_000
 
 interface Bucket {
@@ -22,22 +25,6 @@ const cleanupTimer = setInterval(() => {
 }, WINDOW_MS)
 cleanupTimer.unref?.()
 
-function isSensitiveEndpoint(pathname: string, method: string): boolean {
-  return (
-    /^\/api\/auth\/sign-in(\/|$)/.test(pathname)
-    || /^\/api\/auth\/sign-up(\/|$)/.test(pathname)
-    || pathname === '/api/auth/phone-number/send-otp'
-    || pathname === '/api/auth/phone-number/verify'
-    || pathname === '/api/auth/wechat/phone-sign-in'
-    || (pathname === '/api/admin/users' && method === 'POST')
-    || (method === 'POST'
-      && /^\/api\/activities\/[^/]+\/(register|check-in|manual-check-in)$/.test(pathname))
-    || (method === 'POST'
-      && /^\/api\/admin\/activities\/[^/]+\/manual-check-in$/.test(pathname))
-    || (method === 'GET' && /^\/api\/activities\/[^/]+\/check-in-code$/.test(pathname))
-  )
-}
-
 function getClientIp(event: Parameters<typeof getRequestHeader>[0]): string {
   const xff = getRequestHeader(event, 'x-forwarded-for')
   if (xff) return xff.split(',')[0]?.trim() ?? 'unknown'
@@ -53,10 +40,15 @@ export default defineEventHandler((event) => {
   if (!pathname.startsWith('/api/') || event.method === 'OPTIONS') return
 
   const env = getEnv()
-  const sensitive = isSensitiveEndpoint(pathname, event.method)
-  const max = sensitive ? env.RATE_LIMIT_SENSITIVE_MAX : env.RATE_LIMIT_GLOBAL_MAX
+  const tier = getRateLimitTier(pathname, event.method)
+  const maxByTier = {
+    sensitive: env.RATE_LIMIT_SENSITIVE_MAX,
+    analytics: env.RATE_LIMIT_ANALYTICS_MAX,
+    global: env.RATE_LIMIT_GLOBAL_MAX
+  } as const
+  const max = maxByTier[tier]
   const ip = getClientIp(event)
-  const key = `${sensitive ? 'sensitive' : 'global'}:${ip}`
+  const key = `${tier}:${ip}`
 
   const now = Date.now()
   let bucket = buckets.get(key)
@@ -73,7 +65,7 @@ export default defineEventHandler((event) => {
 
   if (bucket.count > max) {
     setResponseHeader(event, 'Retry-After', Math.ceil((bucket.resetAt - now) / 1000))
-    logWarn(event, '触发速率限制', { path: pathname, ip, sensitive })
+    logWarn(event, '触发速率限制', { path: pathname, ip, tier })
     throw createApiError('RATE_LIMITED')
   }
 })

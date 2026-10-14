@@ -138,7 +138,9 @@ bun run dev:h5       # http://localhost:3333
 - 封禁用户一律 403；`/api/admin/**` 额外要求 **角色名严格等于 `'admin'`**
   （授权判据 `role.name === 'admin'`，角色挂在 user_role 关联表）。
 - 限流：进程内固定窗口 60s；全局默认 300/min，敏感端点（登录/注册/发 OTP/管理员建用户，以及活动的
-  报名/自助签到/手动补签/取签到码 `register`、`check-in`、`manual-check-in`、`check-in-code`）10/min。
+  报名/自助签到/手动补签/取签到码 `register`、`check-in`、`manual-check-in`、`check-in-code`）10/min，
+  公开埋点 `POST /api/share/events` 走独立 analytics 档 30/min（档位判定在
+  `server/utils/rate-limit.ts` 的 `getRateLimitTier`，阈值均可经 `RATE_LIMIT_*_MAX` 环境变量调整）。
   手工测试触发 429 后需等约 65 秒。
 - `phoneNumber` 在 Better Auth 1.7 中是**插件**（`better-auth/plugins`），不是顶层配置字段。
 - 活动组织者角色为 `activity_admin`（或 `admin`）；业务活动接口挂 `/api/activities/**`，

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { MediaItem } from '@/api/media'
+import { cropImage, readCroppedImage } from '@/utils/img-crop'
 import { uploadMedia } from '@/utils/upload-media'
 
 /** 支持的上传形态：纯图片、纯视频、图片视频混合。 */
@@ -28,12 +29,18 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   /** 裸模式：不渲染组件自带触发区与结果 UI，仅通过 expose 的 trigger() 与 change 事件工作。 */
   bare?: boolean
+  /**
+   * 图片裁剪宽高比（如 '1:1'、'16:9'）：设置后，单选图片在上传前先跳裁剪页裁剪；
+   * 仅 type='image' 且非多选（maxCount 为 1）时生效，视频与多选不裁剪。
+   */
+  cropAspect?: string
 }>(), {
   modelValue: () => [],
   multiple: false,
   maxCount: undefined,
   disabled: false,
   bare: false,
+  cropAspect: undefined,
 })
 
 const emit = defineEmits<{
@@ -208,9 +215,84 @@ function chooseMp(): Promise<void> {
   })
 }
 
+/** 当前配置是否需要在上传前跳裁剪页（仅单选图片）。 */
+function shouldCrop(kind: FileKind): boolean {
+  return kind === 'image'
+    && props.type === 'image'
+    && !props.multiple
+    && effectiveMaxCount.value === 1
+    && !!props.cropAspect
+}
+
+/**
+ * 跳裁剪页对图片按 props.cropAspect 裁剪，并把产物转回可上传的 PendingSource。
+ * 用户取消返回 null（静默）；裁剪/读取失败 toast 后返回 null。
+ * H5 传给裁剪页的 blob: 预览 URL 在结算后立即回收。
+ */
+async function cropPendingSource(source: PendingSource): Promise<PendingSource | null> {
+  let previewUrl = ''
+  // #ifdef H5
+  previewUrl = URL.createObjectURL(source.file!)
+  // #endif
+  // #ifdef MP-WEIXIN
+  previewUrl = source.path ?? ''
+  // #endif
+  if (!previewUrl)
+    return null
+  try {
+    const result = await cropImage(previewUrl, props.cropAspect!)
+    if (!result)
+      return null
+    const cropped = await readCroppedImage(result)
+    // #ifdef H5
+    return {
+      kind: 'h5',
+      mediaType: 'image',
+      file: cropped.file!,
+      name: cropped.name,
+      size: cropped.size,
+      contentType: cropped.contentType,
+      ...(cropped.width ? { width: cropped.width } : {}),
+      ...(cropped.height ? { height: cropped.height } : {}),
+    }
+    // #endif
+    // #ifdef MP-WEIXIN
+    return {
+      kind: 'mp',
+      mediaType: 'image',
+      path: cropped.path!,
+      name: cropped.name,
+      size: cropped.size,
+      contentType: cropped.contentType,
+      ...(cropped.width ? { width: cropped.width } : {}),
+      ...(cropped.height ? { height: cropped.height } : {}),
+    }
+    // #endif
+  }
+  catch (err) {
+    uni.showToast({
+      title: err instanceof Error ? err.message : '图片裁剪失败',
+      icon: 'none',
+    })
+    return null
+  }
+  finally {
+    // #ifdef H5
+    URL.revokeObjectURL(previewUrl)
+    // #endif
+  }
+}
+
 async function enqueue(sources: PendingSource[]) {
   const room = effectiveMaxCount.value - items.value.length
-  for (const source of sources.slice(0, room)) {
+  for (const raw of sources.slice(0, room)) {
+    let source = raw
+    if (shouldCrop(source.mediaType)) {
+      const cropped = await cropPendingSource(source)
+      if (!cropped)
+        continue
+      source = cropped
+    }
     if (source.size > TYPE_UI[source.mediaType].maxBytes) {
       uni.showToast({ title: `「${source.name}」大小超限`, icon: 'none' })
       continue
@@ -225,6 +307,8 @@ async function enqueue(sources: PendingSource[]) {
         name: source.name,
         size: source.size,
         mimeType: source.contentType,
+        ...(source.width ? { width: source.width } : {}),
+        ...(source.height ? { height: source.height } : {}),
       },
       status: 'uploading',
       progress: 0,

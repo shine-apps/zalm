@@ -29,6 +29,13 @@
       "when": 1791711427837,
       "tag": "0003_odd_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791874430086,
+      "tag": "0004_flippant_vindicator",
+      "breakpoints": true
     }
   ]
 }

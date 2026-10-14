@@ -9,21 +9,6 @@ export default defineNuxtConfig({
     enabled: true
   },
 
-  // 生产构建（nuxt build / Docker 构建）禁用全部远程字体 provider，
-  // 避免构建期访问 fonts.google.com 等外部服务的超时重试（国内网络约白等 2 分钟）；
-  // 字体回退到 CSS font-family 栈中的系统字体。dev 模式不受影响。
-  fonts: process.env.NODE_ENV === 'production'
-    ? {
-        adobe: false,
-        bunny: false,
-        fontshare: false,
-        fontsource: false,
-        google: false,
-        googleicons: false,
-        npm: false
-      }
-    : undefined,
-
   css: ['~/assets/css/main.css'],
 
   routeRules: {
@@ -44,5 +29,10 @@ export default defineNuxtConfig({
         braceStyle: '1tbs'
       }
     }
-  }
+  },
+
+  // 生产构建（nuxt build / Docker 构建）整体禁用 @nuxt/fonts，
+  // 避免构建期访问 fonts.google.com 等外部服务的超时重试（国内网络约白等 2 分钟）；
+  // 字体回退到 CSS font-family 栈中的系统字体。dev 模式不受影响。
+  fonts: process.env.NODE_ENV === 'production' ? false : undefined
 })

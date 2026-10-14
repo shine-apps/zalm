@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import {
+  index,
   integer,
   jsonb,
   pgTable,
@@ -164,6 +165,37 @@ export const activityMedia = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
   },
   t => [unique('activity_media_activity_media_unique').on(t.activityId, t.mediaId)]
+)
+
+// ===== 分享埋点 =====
+
+/**
+ * 分享行为事件（前端 /api/share/events 上报）。
+ * 公开端点游客可报，actorUserId 软挂会话、可空且不设外键，避免账号删除影响埋点留存。
+ */
+export const shareEvent = pgTable(
+  'share_event',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    actorUserId: text('actor_user_id'),
+    platform: text('platform').notNull(),
+    page: text('page').notNull(),
+    targetType: text('target_type'),
+    targetId: text('target_id'),
+    channel: text('channel'),
+    event: text('event').notNull(),
+    shareUrl: text('share_url'),
+    panelId: text('panel_id'),
+    extra: jsonb('extra').$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  t => [
+    index('share_event_target_idx').on(t.targetType, t.targetId, t.createdAt),
+    index('share_event_event_idx').on(t.event, t.createdAt),
+    index('share_event_actor_idx').on(t.actorUserId)
+  ]
 )
 
 // Better Auth 四张表

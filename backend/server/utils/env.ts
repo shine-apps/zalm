@@ -15,9 +15,15 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8).optional(),
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().positive().default(300),
   RATE_LIMIT_SENSITIVE_MAX: z.coerce.number().int().positive().default(10),
+  // 公开埋点上报（POST /api/share/events）：游客可报，配额严于全局以防刷库
+  RATE_LIMIT_ANALYTICS_MAX: z.coerce.number().int().positive().default(30),
   // 微信小程序「获取手机号」：非 mock 模式下调用微信 API 时必须提供
   WECHAT_APPID: z.string().optional(),
   WECHAT_SECRET: z.string().optional(),
+  // 微信公众号（服务号/认证订阅号）：H5 JS-SDK 自定义分享卡片；
+  // 不配置时 /api/share/wx-config 返回 enabled:false，前端降级为引导分享
+  WECHAT_OA_APPID: z.string().optional(),
+  WECHAT_OA_SECRET: z.string().optional(),
   // 开发联调用：仅字符串 'true' 视为开启（不能用 z.coerce.boolean——它会把 'false' 也转成 true）
   WECHAT_MOCK: z.string().default('false').transform(v => v === 'true'),
   // 腾讯云 COS（不配置不影响应用启动，仅调用媒体接口时报“对象存储未配置”）

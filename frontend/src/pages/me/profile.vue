@@ -214,11 +214,12 @@ async function handleConfirmPhone() {
         />
         <view class="i-carbon-chevron-right ml-2 text-4 text-muted" />
       </view>
-      <!-- 通用媒体上传组件：裸模式，仅复用其选择/直传/登记能力 -->
+      <!-- 通用媒体上传组件：裸模式，仅复用其选择/直传/登记能力；上传前先按 1:1 裁剪 -->
       <media-uploader
         ref="avatarUploader"
         type="image"
         bare
+        crop-aspect="1:1"
         @change="onAvatarChange"
       />
 

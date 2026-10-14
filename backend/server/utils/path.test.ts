@@ -47,6 +47,16 @@ describe('isPublicPath', () => {
     expect(isPublicPath('/api/admin/settings/site.title')).toBe(false)
   })
 
+  it('allows public share endpoints (js-sdk signature and tracking events)', () => {
+    expect(isPublicPath('/api/share/wx-config')).toBe(true)
+    expect(isPublicPath('/api/share/events')).toBe(true)
+  })
+
+  it('does not treat sibling prefixes of /api/share as public', () => {
+    expect(isPublicPath('/api/share-secret')).toBe(false)
+    expect(isPublicPath('/api/sharehook')).toBe(false)
+  })
+
   it('requires authentication for regular API paths', () => {
     expect(isPublicPath('/api/me')).toBe(false)
     expect(isPublicPath('/api/media/register')).toBe(false)
@@ -75,5 +85,7 @@ describe('isPublicRequest', () => {
   it('still honors prefix-based public paths for any method', () => {
     expect(isPublicRequest('/api/health', 'GET')).toBe(true)
     expect(isPublicRequest('/api/auth/sign-in/email', 'POST')).toBe(true)
+    expect(isPublicRequest('/api/share/events', 'POST')).toBe(true)
+    expect(isPublicRequest('/api/share/wx-config', 'GET')).toBe(true)
   })
 })

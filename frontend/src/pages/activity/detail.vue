@@ -7,6 +7,7 @@ import {
   registerToActivity,
 } from '@/api/activity'
 import { resolveMediaUrl } from '@/api/profile'
+import { useShare } from '@/share/useShare'
 import { useAuthStore } from '@/store/auth'
 import { formatDateTime, formatTimeRange } from '@/utils/datetime'
 import { openActivityNavigation } from '@/utils/location'
@@ -224,6 +225,24 @@ const progressPercent = computed(() => {
   return Math.min(100, Math.round((a.registeredCount / a.capacity) * 100))
 })
 
+// —— 分享（小程序 onShareAppMessage/onShareTimeline + H5 分享面板）——
+const {
+  show: shareShow,
+  payload: sharePayload,
+  panelId: sharePanelId,
+  openShare,
+} = useShare(() => ({
+  title: detail.value ? `${detail.value.title}` : '活动详情',
+  desc: detail.value
+    ? `${formatTimeRange(detail.value.startTime, detail.value.endTime)} · ${detail.value.location.name}`
+    : '',
+  page: '/pages/activity/detail',
+  query: activityId.value ? { id: activityId.value } : {},
+  imageUrl: detail.value?.coverUrl,
+  targetType: 'activity',
+  targetId: activityId.value || undefined,
+}))
+
 onLoad((options) => {
   activityId.value = options?.id ?? ''
   void load()
@@ -269,9 +288,17 @@ onUnload(() => {
       <view class="px-3 pt-3">
         <!-- 标题与时间 -->
         <view class="rounded-3 bg-card p-4 shadow-sm">
-          <text class="text-5 text-ink font-semibold leading-7">
-            {{ detail.title }}
-          </text>
+          <view class="flex items-start">
+            <text class="flex-1 text-5 text-ink font-semibold leading-7">
+              {{ detail.title }}
+            </text>
+            <view
+              class="ml-3 mt-0.5 h-32px w-32px flex shrink-0 items-center justify-center rounded-full bg-hover text-muted"
+              @click="openShare"
+            >
+              <view class="i-carbon-share text-18px" />
+            </view>
+          </view>
           <view v-if="detail.categories.length" class="mt-2 flex flex-wrap">
             <text
               v-for="c in detail.categories"
@@ -436,6 +463,15 @@ onUnload(() => {
       class="fixed bottom-0 left-0 right-0 flex items-center border-t border-line bg-card px-3 py-2"
       style="padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px)"
     >
+      <!-- 分享入口（游客可用，所有状态分支共用） -->
+      <view
+        class="mr-2 h-44px w-44px flex shrink-0 flex-col items-center justify-center border border-line-strong rounded-2 text-sub"
+        @click="openShare"
+      >
+        <view class="i-carbon-share text-18px" />
+        <text class="mt-0.5 text-2.5">分享</text>
+      </view>
+
       <!-- 游客 -->
       <button
         v-if="!auth.isLoggedIn"
@@ -484,6 +520,13 @@ onUnload(() => {
         </button>
       </template>
     </view>
+
+    <!-- 分享面板（H5 宫格/微信引导遮罩；小程序内转为系统引导弹窗） -->
+    <share-sheet
+      v-model:show="shareShow"
+      :payload="sharePayload"
+      :panel-id="sharePanelId"
+    />
 
     <!-- 视频播放弹层 -->
     <view

@@ -80,12 +80,14 @@ const alovaInstance = createAlova({
   ...AdapterUniapp(),
   timeout: 15000,
   statesHook: VueHook,
+  // 本工程所有接口随会话 Cookie 个性化（如 myRegistration），alova 默认 GET 缓存 5 分钟
+  // 内存快照，会导致写操作后 load() 拿到旧数据（报名后按钮仍显示「立即报名」），同设备
+  // 切换账号也会串视图。注意：cacheFor 必须在实例配置（Method 构造期）关闭——alova 在
+  // sendRequest 中先读 cacheFor 查缓存、后执行 beforeRequest，在 beforeRequest 里改
+  // method.config.cacheFor 对当次请求不生效。0 = 写入即过期，等于不缓存。
+  cacheFor: { GET: 0 },
 
   beforeRequest(method) {
-    // 本工程所有接口随会话 Cookie 个性化（如 myRegistration），alova 默认 GET 缓存
-    // 5 分钟内存快照，既会导致写操作后 load() 拿到旧数据，也会在同设备切换账号时串视图，
-    // 这里在全局请求前把缓存时间置 0（alova v3 字段为 cacheFor，0 表示不缓存）。
-    method.config.cacheFor = 0
     // upload 走 multipart/form-data，Content-Type 需由 uni.uploadFile/浏览器自带 boundary，
     // 这里不能指定 application/json，否则服务端无法解析表单
     const isUpload = method.config.requestType === 'upload'
