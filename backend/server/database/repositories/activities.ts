@@ -7,6 +7,8 @@ import {
   gte,
   ilike,
   inArray,
+  isNotNull,
+  isNull,
   lt,
   ne,
   or,
@@ -115,6 +117,56 @@ export async function listActivities(
     db.select({ value: count() }).from(activityTable).where(where)
   ])
   return { rows, total: Number(totalRows[0]?.value ?? 0) }
+}
+
+/** 首页「近期风采」候选：时间窗内已结束的已发布活动，按结束时间倒序。 */
+export async function listRecentlyEndedActivities(input: {
+  now: Date
+  windowMs: number
+  limit: number
+}): Promise<ActivityRow[]> {
+  const since = new Date(input.now.getTime() - input.windowMs)
+  const rows = await db
+    .select()
+    .from(activityTable)
+    .where(
+      and(
+        eq(activityTable.status, 'published'),
+        lt(activityTable.endTime, input.now),
+        gte(activityTable.endTime, since)
+      )
+    )
+    .orderBy(desc(activityTable.endTime), desc(activityTable.id))
+    .limit(input.limit)
+  return rows
+}
+
+/**
+ * 首页「招募中」：已发布且当前未过有效报名截止时间（无截止时间以开始时间为准）。
+ * 满员不在此剔除——由前端置灰，保证候选集与统计口径一致。
+ */
+export async function listRecruitingActivities(input: {
+  now: Date
+  limit: number
+}): Promise<ActivityRow[]> {
+  const rows = await db
+    .select()
+    .from(activityTable)
+    .where(
+      and(
+        eq(activityTable.status, 'published'),
+        // 有效报名截止时间 = register_deadline ?? start_time。
+        // 展开成 OR 而非原生 COALESCE 片段：postgres.js 对 sql 片段中的裸 Date 参数
+        // 没有列类型编码器会报错，列条件里的 Date 则走正常参数编码。
+        or(
+          and(isNotNull(activityTable.registerDeadline), gte(activityTable.registerDeadline, input.now)),
+          and(isNull(activityTable.registerDeadline), gte(activityTable.startTime, input.now))
+        )
+      )
+    )
+    .orderBy(asc(activityTable.startTime), asc(activityTable.id))
+    .limit(input.limit)
+  return rows
 }
 
 export async function getActivityById(id: string, exec: DbExecutor = db): Promise<ActivityRow | null> {

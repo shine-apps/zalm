@@ -54,7 +54,7 @@ function effectiveDeadline(activity: ActivityRow): Date {
   return activity.registerDeadline ? new Date(activity.registerDeadline) : new Date(activity.startTime)
 }
 
-function toActivityView(
+export function toActivityView(
   activity: ActivityRow,
   stat: { registeredCount: number, checkedInCount: number },
   now: Date,

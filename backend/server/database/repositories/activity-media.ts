@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '../client'
 import { activityMedia, mediaFile } from '../schema'
 import type { DbExecutor } from './activities'
@@ -69,4 +69,34 @@ export async function deleteActivityMediaRow(
     .where(and(eq(activityMedia.activityId, activityId), eq(activityMedia.mediaId, mediaId)))
     .returning()
   return rows[0] ?? null
+}
+
+/**
+ * 批量取多个活动相册中「最早的一张图片」URL（跳过视频）。
+ * 按 (activityId, 关联创建时间) 升序拉取后在 JS 内每组取首条，
+ * 候选数受调用方限制（首页 ≤20 个候选），上限 500 行兜底。
+ */
+export async function listFirstImageUrlsForActivities(
+  activityIds: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  if (activityIds.length === 0) return map
+  const rows = await db
+    .select({
+      activityId: activityMedia.activityId,
+      url: mediaFile.url
+    })
+    .from(activityMedia)
+    .innerJoin(mediaFile, eq(activityMedia.mediaId, mediaFile.id))
+    .where(and(inArray(activityMedia.activityId, activityIds), eq(mediaFile.type, 'image')))
+    .orderBy(
+      asc(activityMedia.activityId),
+      asc(activityMedia.createdAt),
+      asc(activityMedia.id)
+    )
+    .limit(500)
+  for (const row of rows) {
+    if (!map.has(row.activityId)) map.set(row.activityId, row.url)
+  }
+  return map
 }

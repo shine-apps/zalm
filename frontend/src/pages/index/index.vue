@@ -1,9 +1,14 @@
 <script lang="ts" setup>
+import type { ActivityView } from '@/api/activity'
+import { getHome } from '@/api/home'
+import type { HomeHighlight } from '@/api/home'
+import { getPointsFeed } from '@/api/points'
+import type { PointsFeedItem } from '@/api/points'
+
 defineOptions({
   name: 'Home',
 })
 definePage({
-  // 使用 type: "home" 属性设置首页，其他页面不需要设置，默认为page
   type: 'home',
   layout: 'blank',
   style: {
@@ -11,91 +16,123 @@ definePage({
   },
 })
 
-/**
- * 五大业务入口。本轮均无落地页，点击统一提示「即将上线」；
- * 后续二级页就绪后，把 tap 行为换成 uni.navigateTo 即可。
- */
-const entries = [
-  { key: 'aiding', label: '助学帮扶', icon: 'i-carbon-education' },
-  { key: 'supplies', label: '爱心物资', icon: 'i-carbon-delivery-parcel' },
-  { key: 'culture', label: '传统文化', icon: 'i-carbon-book' },
-  { key: 'village', label: '乡村振兴', icon: 'i-carbon-location-heart' },
-  { key: 'care', label: '关爱群体', icon: 'i-carbon-user-multiple' },
-] as const
+const highlights = ref<HomeHighlight[]>([])
+const recruiting = ref<ActivityView[]>([])
+const feedItems = ref<PointsFeedItem[]>([])
 
-/** Banner 主按钮：去关于页了解组织 */
+async function loadHome() {
+  try {
+    const data = await getHome()
+    highlights.value = data.highlights
+    recruiting.value = data.recruiting
+  }
+  catch {
+    // 请求层已统一 toast；失败时保留各板块空态
+    highlights.value = []
+    recruiting.value = []
+  }
+}
+
+async function loadFeed() {
+  try {
+    const res = await getPointsFeed(1, undefined, 20)
+    feedItems.value = res.data
+  }
+  catch {
+    feedItems.value = []
+  }
+}
+
 function goAbout() {
   uni.navigateTo({ url: '/pages/about/about' })
 }
 
-/** 业务入口本期均未上线 */
-function comingSoon() {
-  uni.showToast({ title: '板块即将上线，敬请期待', icon: 'none' })
+function openDetail(id: string) {
+  uni.navigateTo({ url: `/pages/activity/detail?id=${id}` })
 }
+
+function goActivityList() {
+  uni.switchTab({ url: '/pages/activity/activity' })
+}
+
+function goPoints() {
+  uni.navigateTo({ url: '/pages/points/index' })
+}
+
+// 首屏与从详情页报名后返回都刷新（与活动列表页一致，仅用 onShow 避免首屏双发）
+onShow(() => {
+  void Promise.allSettled([loadHome(), loadFeed()])
+})
 </script>
 
 <template>
   <view class="min-h-screen bg-page px-3 py-3">
-    <!-- 使命 Banner：渐变走主题变量，深浅色自动跟随 -->
-    <view class="mission-banner relative overflow-hidden rounded-4 p-5">
-      <!-- 右下角「众」字水印，纯文字装饰，不新增图片资源 -->
+    <!-- 压缩品牌头 -->
+    <view class="mission-banner relative overflow-hidden rounded-4 px-4 py-3.5">
       <view
         class="pointer-events-none absolute text-white font-bold -bottom-6 -right-1"
-        style="font-size: 120rpx; opacity: 0.08"
+        style="font-size: 96rpx; opacity: 0.08"
       >
         众
       </view>
-
       <view class="text-3 text-white tracking-widest" style="opacity: 0.9">
         众爱联盟 · ZHONG AI LIAN MENG
       </view>
-      <view class="mt-2 text-6 text-white font-bold leading-8">
-        一对一助力
-        <br>
-        困境学生安心学业
-      </view>
-      <view class="mt-2 text-3.5 text-white leading-6" style="opacity: 0.85">
-        承接爱心物资发送 · 弘扬传统文化
-        <br>
-        助力乡村振兴 · 关爱弱势群体
+      <view class="mt-1.5 text-5 text-white font-bold leading-7">
+        一对一助力困境学生安心学业
       </view>
       <view
-        class="text-primary-soft-text mt-4 inline-block rounded-full bg-white px-4 py-1.5 text-3.5 font-semibold"
+        class="mt-2 inline-block rounded-full bg-white px-3.5 py-1 text-3 text-primary font-semibold"
         @click="goAbout"
       >
         了解我们 ›
       </view>
     </view>
 
-    <!-- 信念条 -->
-    <view class="mt-3 flex items-center rounded-2 bg-primary-soft px-3 py-2.5">
-      <view class="text-primary-soft-text i-carbon-favorite mr-2 text-4" />
-      <text class="text-primary-soft-text text-3.5">
-        让每一份善意，一对一精准抵达需要的人
+    <!-- 近期风采轮播：无素材时整块隐藏 -->
+    <fg-home-swiper
+      v-if="highlights.length"
+      class="mt-3 block"
+      :items="highlights"
+      @select="openDetail"
+    />
+
+    <!-- 爱心动态滚动条（冷启动自动轮播信念文案） -->
+    <fg-points-ticker :items="feedItems" @more="goPoints" />
+
+    <!-- 招募中 -->
+    <view class="mt-4 flex items-center px-1">
+      <text class="text-5 text-ink font-semibold">🔥 招募中</text>
+      <text v-if="recruiting.length" class="ml-2 text-3 text-muted">
+        {{ recruiting.length }} 场活动等你参与
+      </text>
+      <text class="ml-auto text-3 text-muted" @click="goActivityList">
+        查看全部 ›
       </text>
     </view>
 
-    <!-- 五大业务入口：flex 五等宽，兼容小程序；点击均为占位提示 -->
-    <view class="mt-3 flex rounded-3 bg-card py-4 shadow-sm">
+    <view class="mt-2.5">
+      <fg-recruit-card
+        v-for="a in recruiting"
+        :key="a.id"
+        class="mb-3 block"
+        :activity="a"
+        @select="openDetail"
+      />
+
       <view
-        v-for="item in entries"
-        :key="item.key"
-        class="flex-1"
-        @click="comingSoon"
+        v-if="!recruiting.length"
+        class="flex flex-col items-center border border-hover rounded-3 border-dashed bg-card px-4 py-8"
+        @click="goActivityList"
       >
-        <view class="flex flex-col items-center">
-          <view class="h-40px w-40px center rounded-2 bg-primary-soft">
-            <view :class="item.icon" class="text-primary-soft-text text-20px" />
-          </view>
-          <text class="mt-1.5 text-3.5 text-sub">
-            {{ item.label }}
-          </text>
-        </view>
+        <view class="i-carbon-event-schedule text-40px text-muted" />
+        <text class="mt-2 text-3.5 text-muted">
+          近期暂无招募活动，看看往期风采 ›
+        </text>
       </view>
     </view>
 
-    <!-- 底部落款 -->
-    <view class="mt-8 pb-4 text-center text-3 text-muted tracking-widest">
+    <view class="mt-6 pb-4 text-center text-3 text-muted tracking-widest">
       仁心济世 · 善行天下
     </view>
   </view>

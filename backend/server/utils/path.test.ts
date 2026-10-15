@@ -88,4 +88,22 @@ describe('isPublicRequest', () => {
     expect(isPublicRequest('/api/share/events', 'POST')).toBe(true)
     expect(isPublicRequest('/api/share/wx-config', 'GET')).toBe(true)
   })
+
+  it('allows guest GET on the home aggregation endpoint', () => {
+    expect(isPublicRequest('/api/home', 'GET')).toBe(true)
+  })
+
+  it('keeps non-GT home methods authenticated', () => {
+    expect(isPublicRequest('/api/home', 'POST')).toBe(false)
+  })
+
+  it('allows guest GET on the public points feed only', () => {
+    expect(isPublicRequest('/api/points/feed', 'GET')).toBe(true)
+  })
+
+  it('keeps personal points endpoints authenticated after feed goes public', () => {
+    expect(isPublicRequest('/api/points/me', 'GET')).toBe(false)
+    expect(isPublicRequest('/api/points/me/ledger', 'GET')).toBe(false)
+    expect(isPublicRequest('/api/points/leaderboard', 'GET')).toBe(false)
+  })
 })
