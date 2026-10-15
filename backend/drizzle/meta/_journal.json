@@ -36,6 +36,13 @@
       "when": 1791874430086,
       "tag": "0004_flippant_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791982827105,
+      "tag": "0005_abnormal_winter_soldier",
+      "breakpoints": true
     }
   ]
 }

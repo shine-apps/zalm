@@ -8,6 +8,7 @@ import {
   ilike,
   inArray,
   lt,
+  ne,
   or,
   sql,
   type SQL
@@ -54,6 +55,7 @@ export interface NewActivityInput {
   endTime: Date
   registerDeadline: Date | null
   capacity: number | null
+  points: number
   createdBy: string
 }
 
@@ -145,6 +147,7 @@ export async function insertActivity(input: NewActivityInput): Promise<ActivityR
       endTime: input.endTime,
       registerDeadline: input.registerDeadline,
       capacity: input.capacity,
+      points: input.points,
       status: 'published',
       createdBy: input.createdBy
     })
@@ -217,11 +220,17 @@ export async function setRegistrationCancelled(
   return rows[0] ?? null
 }
 
-export async function setRegistrationCheckedIn(
+/**
+ * 仅当报名行当前非 checked_in 时更新为已签到（原子条件更新）。
+ * 返回到更新后的行表示「首次签到」；返回 null 表示此前已签到（幂等请求）。
+ * 必须在事务内调用，与积分发放同事务。
+ */
+export async function setRegistrationCheckedInIfFirst(
   id: string,
-  input: { checkInAt: Date, method: 'scan' | 'manual', checkedInBy: string | null }
+  input: { checkInAt: Date, method: 'scan' | 'manual', checkedInBy: string | null },
+  exec: DbExecutor
 ): Promise<RegistrationRow | null> {
-  const rows = await db
+  const rows = await exec
     .update(registrationTable)
     .set({
       status: 'checked_in',
@@ -229,7 +238,7 @@ export async function setRegistrationCheckedIn(
       checkInMethod: input.method,
       checkedInBy: input.checkedInBy
     })
-    .where(eq(registrationTable.id, id))
+    .where(and(eq(registrationTable.id, id), ne(registrationTable.status, 'checked_in')))
     .returning()
   return rows[0] ?? null
 }

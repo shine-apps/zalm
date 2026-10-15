@@ -9,6 +9,7 @@ interface ActivityDetail {
   endTime: string
   registerDeadline: string | null
   capacity: number | null
+  points: number
   status: 'published' | 'cancelled'
   state: 'upcoming' | 'ongoing' | 'ended' | 'cancelled'
   registeredCount: number
@@ -173,6 +174,12 @@ onMounted(async () => {
             {{ stats.capacity === null ? '不限' : `上限 ${stats.capacity}` }}，
             已签到 {{ stats.checkedInCount }}
           </dd>
+        </div>
+        <div>
+          <dt class="text-muted">
+            参与积分
+          </dt>
+          <dd>{{ activity.points }} 分</dd>
         </div>
         <div>
           <dt class="text-muted">

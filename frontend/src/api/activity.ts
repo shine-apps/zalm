@@ -66,6 +66,7 @@ export interface ActivityView {
   endTime: string
   registerDeadline: string | null
   capacity: number | null
+  points: number
   status: ActivityStatus
   state: ActivityDerivedState
   createdBy: string
@@ -121,6 +122,7 @@ export interface ActivityPayload {
   endTime: string
   registerDeadline?: string | null
   capacity?: number | null
+  points: number
 }
 export type ActivityUpdatePayload = Partial<ActivityPayload>
 

@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { desc, sql } from 'drizzle-orm'
 import {
   index,
   integer,
@@ -7,7 +7,9 @@ import {
   primaryKey,
   text,
   timestamp,
-  unique
+  unique,
+  uniqueIndex,
+  type AnyPgColumn
 } from 'drizzle-orm/pg-core'
 import { user } from './auth-schema'
 import type { MediaMetadata } from '../utils/media'
@@ -112,6 +114,8 @@ export const activity = pgTable('activity', {
   endTime: timestamp('end_time', { withTimezone: true }).notNull(),
   registerDeadline: timestamp('register_deadline', { withTimezone: true }),
   capacity: integer('capacity'),
+  // 签到成功可得的参与积分，0 表示该活动不计分（值域 0..9999，Zod 入口保证）
+  points: integer('points').notNull().default(0),
   status: text('status').notNull().default('published'),
   createdBy: text('created_by')
     .notNull()
@@ -166,6 +170,72 @@ export const activityMedia = pgTable(
   },
   t => [unique('activity_media_activity_media_unique').on(t.activityId, t.mediaId)]
 )
+
+// ===== 积分 =====
+
+export const POINTS_CATEGORIES = ['activity', 'donation'] as const
+export type PointsCategory = (typeof POINTS_CATEGORIES)[number]
+
+export const POINTS_SOURCES = ['checkin', 'manual_activity', 'manual_donation', 'reversal'] as const
+export type PointsSource = (typeof POINTS_SOURCES)[number]
+
+export const DONATION_KINDS = ['money', 'goods'] as const
+export type DonationKind = (typeof DONATION_KINDS)[number]
+
+/**
+ * 积分流水（唯一事实源）：一行一次变动，points 带符号（得分正、冲正负）。
+ * - (registration_id) 部分唯一索引：一场签到最多一条活动积分流水（并发/重复签到兜底）
+ * - (reversal_of) 部分唯一索引：一条流水最多被冲正一次
+ */
+export const pointsLedger = pgTable(
+  'points_ledger',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    points: integer('points').notNull(),
+    category: text('category').$type<PointsCategory>().notNull(),
+    source: text('source').$type<PointsSource>().notNull(),
+    activityId: text('activity_id').references(() => activity.id, { onDelete: 'restrict' }),
+    registrationId: text('registration_id').references(() => activityRegistration.id, {
+      onDelete: 'restrict'
+    }),
+    donationKind: text('donation_kind').$type<DonationKind>(),
+    // 金额/物资名称等仅后台与本人可见；全站动态流在序列化层强制剔除
+    note: text('note').notNull().default(''),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'restrict' }),
+    reversalOf: text('reversal_of').references((): AnyPgColumn => pointsLedger.id, {
+      onDelete: 'restrict'
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  t => [
+    uniqueIndex('points_ledger_registration_uidx')
+      .on(t.registrationId)
+      .where(sql`${t.registrationId} IS NOT NULL`),
+    uniqueIndex('points_ledger_reversal_uidx')
+      .on(t.reversalOf)
+      .where(sql`${t.reversalOf} IS NOT NULL`),
+    index('points_ledger_user_idx').on(t.userId, t.category, desc(t.createdAt)),
+    index('points_ledger_category_idx').on(t.category, desc(t.createdAt))
+  ]
+)
+
+/** 用户积分汇总（读优化）；只允许由流水在同事务内 upsert 增量，无其他修改入口。 */
+export const userPoints = pgTable('user_points', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  activityPoints: integer('activity_points').notNull().default(0),
+  donationPoints: integer('donation_points').notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date())
+})
 
 // ===== 分享埋点 =====
 

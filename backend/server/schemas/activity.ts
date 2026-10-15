@@ -68,7 +68,8 @@ export const activityCreateBodySchema = z
     startTime: isoDate,
     endTime: isoDate,
     registerDeadline: isoDate.nullable().optional(),
-    capacity: z.number().int().min(1).max(99999).nullable().optional()
+    capacity: z.number().int().min(1).max(99999).nullable().optional(),
+    points: z.number().int().min(0).max(9999).default(0)
   })
   .strict()
   .superRefine((data, ctx) => {
@@ -91,7 +92,8 @@ export const activityUpdateBodySchema = z
     startTime: isoDate.optional(),
     endTime: isoDate.optional(),
     registerDeadline: isoDate.nullable().optional(),
-    capacity: z.number().int().min(1).max(99999).nullable().optional()
+    capacity: z.number().int().min(1).max(99999).nullable().optional(),
+    points: z.number().int().min(0).max(9999).optional()
   })
   .strict()
   .refine(data => Object.keys(data).length > 0, { message: '至少提供一个待更新字段' })

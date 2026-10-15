@@ -15,7 +15,7 @@ import {
   reviveRegistration,
   setActivityStatus,
   setRegistrationCancelled,
-  setRegistrationCheckedIn,
+  setRegistrationCheckedInIfFirst,
   type ActivityRow,
   type ActivityStateFilter,
   type RegistrationRow
@@ -31,6 +31,7 @@ import {
 } from '../database/repositories/activity-media'
 import { adjustRefCount, getMediaFileById } from '../database/repositories/media'
 import { getCurrentCheckinCode, verifyCheckinCode } from './checkin-code'
+import { awardCheckinPoints } from './points-service'
 import { toActivityMediaView, type ActivityMediaItemView } from './activity-media'
 
 /** 签到开放提前量：活动开始前 15 分钟。 */
@@ -71,6 +72,7 @@ function toActivityView(
     endTime: activity.endTime,
     registerDeadline: activity.registerDeadline,
     capacity: activity.capacity,
+    points: activity.points,
     status: activity.status,
     state: deriveState(activity, now),
     createdBy: activity.createdBy,
@@ -140,6 +142,7 @@ export async function publishActivity(input: ActivityCreateBody, userId: string)
     endTime: input.endTime,
     registerDeadline: input.registerDeadline ?? null,
     capacity: input.capacity ?? null,
+    points: input.points,
     createdBy: userId
   })
 }
@@ -183,7 +186,8 @@ export async function editActivity(id: string, patch: ActivityUpdateBody) {
     ...(patch.startTime !== undefined && { startTime: patch.startTime }),
     ...(patch.endTime !== undefined && { endTime: patch.endTime }),
     ...(patch.registerDeadline !== undefined && { registerDeadline: patch.registerDeadline }),
-    ...(patch.capacity !== undefined && { capacity: patch.capacity })
+    ...(patch.capacity !== undefined && { capacity: patch.capacity }),
+    ...(patch.points !== undefined && { points: patch.points })
   })
   if (!updated) throw createApiError('NOT_FOUND', { message: '活动不存在' })
   return updated
@@ -300,7 +304,7 @@ export async function checkInToActivity(
   if (reg.status === 'cancelled') {
     throw createApiError('CONFLICT', { message: '报名已取消，请重新报名' })
   }
-  if (reg.status === 'checked_in') return reg // 幂等
+  if (reg.status === 'checked_in') return reg // 幂等快速返回，不开事务
 
   const opensAt = new Date(new Date(activity.startTime).getTime() - CHECKIN_LEAD_MS)
   if (now < opensAt) throw createApiError('CONFLICT', { message: '签到尚未开始' })
@@ -311,11 +315,22 @@ export async function checkInToActivity(
     throw createApiError('VALIDATION_ERROR', { message: '签到码无效或已过期' })
   }
 
-  return (await setRegistrationCheckedIn(reg.id, {
-    checkInAt: now,
-    method: 'scan',
-    checkedInBy: null
-  }))!
+  // 签到落盘 + 积分发放同事务；条件更新保证只有首次签到发分
+  return db.transaction(async (tx) => {
+    const updated = await setRegistrationCheckedInIfFirst(
+      reg.id,
+      { checkInAt: now, method: 'scan', checkedInBy: null },
+      tx
+    )
+    if (!updated) return reg // 并发下已被另一请求签到：幂等，不发分
+    await awardCheckinPoints(tx, {
+      registrationId: updated.id,
+      userId: updated.userId,
+      activityId,
+      points: activity.points
+    })
+    return updated
+  })
 }
 
 export async function manualCheckIn(
@@ -324,18 +339,28 @@ export async function manualCheckIn(
   operatorId: string,
   now: Date = new Date()
 ) {
-  await requireActivity(activityId)
+  const activity = await requireActivity(activityId)
   const reg = await getRegistration(activityId, targetUserId)
   if (!reg) throw createApiError('CONFLICT', { message: '该用户未报名此活动' })
-  if (reg.status === 'checked_in') return reg // 幂等
+  if (reg.status === 'checked_in') return reg // 幂等快速返回
   if (reg.status === 'cancelled') {
     throw createApiError('CONFLICT', { message: '该用户已取消报名' })
   }
-  return (await setRegistrationCheckedIn(reg.id, {
-    checkInAt: now,
-    method: 'manual',
-    checkedInBy: operatorId
-  }))!
+  return db.transaction(async (tx) => {
+    const updated = await setRegistrationCheckedInIfFirst(
+      reg.id,
+      { checkInAt: now, method: 'manual', checkedInBy: operatorId },
+      tx
+    )
+    if (!updated) return reg
+    await awardCheckinPoints(tx, {
+      registrationId: updated.id,
+      userId: updated.userId,
+      activityId,
+      points: activity.points
+    })
+    return updated
+  })
 }
 
 export async function listMineView(userId: string, page: number, pageSize: number) {

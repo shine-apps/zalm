@@ -28,6 +28,7 @@ const form = ref({
   hasDeadline: false,
   deadlineTs: 0,
   capacityText: '',
+  pointsText: '0',
   location: {
     name: '',
     address: '',
@@ -78,6 +79,7 @@ async function prefill(id: string) {
       ? new Date(a.registerDeadline).getTime()
       : form.value.startTs
     form.value.capacityText = a.capacity === null ? '' : String(a.capacity)
+    form.value.pointsText = String(a.points ?? 0)
     form.value.location = { ...a.location }
   }
   catch {
@@ -169,6 +171,9 @@ function validate(): string | null {
     if (!Number.isInteger(cap) || cap < 1 || cap > 99999)
       return '人数上限需为 1~99999 的整数（留空表示不限）'
   }
+  const points = Number(f.pointsText)
+  if (!Number.isInteger(points) || points < 0 || points > 9999)
+    return '参与积分需为 0~9999 的整数'
   const name = f.location.name.trim()
   const address = f.location.address.trim()
   if (!name || name.length > 100)
@@ -180,6 +185,7 @@ function validate(): string | null {
 
 function buildPayload(): ActivityPayload {
   const f = form.value
+  const points = Number(f.pointsText) || 0
   return {
     title: f.title.trim(),
     description: f.description,
@@ -195,6 +201,7 @@ function buildPayload(): ActivityPayload {
     endTime: new Date(f.endTs).toISOString(),
     registerDeadline: f.hasDeadline ? new Date(f.deadlineTs).toISOString() : null,
     capacity: f.capacityText.trim() === '' ? null : Number(f.capacityText),
+    points,
   }
 }
 
@@ -344,6 +351,15 @@ async function onSubmit() {
           type="number"
           placeholder="留空表示不限"
           class="ml-auto h-32px w-200px rounded-2 bg-hover px-3 text-right text-4 text-ink"
+        >
+      </view>
+      <view class="flex items-center border-t border-line px-4 py-3.5">
+        <text class="text-4 text-sub">参与积分</text>
+        <input
+          v-model="form.pointsText"
+          type="number"
+          placeholder="签到可得积分，0 表示不计分"
+          class="ml-auto h-32px w-220px rounded-2 bg-hover px-3 text-right text-4 text-ink"
         >
       </view>
     </view>

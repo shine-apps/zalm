@@ -5,6 +5,7 @@ import {
   activityLocationSchema,
   activityMediaBindBodySchema,
   activityMediaUpdateBodySchema,
+  activityUpdateBodySchema,
   checkInBodySchema,
   collectTimeIssues,
   manualCheckInBodySchema
@@ -175,5 +176,24 @@ describe('activityMediaUpdateBodySchema', () => {
     expect(
       activityMediaUpdateBodySchema.safeParse({ description: 'x'.repeat(201) }).success
     ).toBe(false)
+  })
+})
+
+describe('activity points', () => {
+  it('defaults points to 0 when omitted', () => {
+    const parsed = activityCreateBodySchema.parse({ ...baseBody })
+    expect(parsed.points).toBe(0)
+  })
+
+  it('accepts points in 0..9999 and rejects out of range / non-integer', () => {
+    expect(activityCreateBodySchema.parse({ ...baseBody, points: 10 }).points).toBe(10)
+    expect(activityCreateBodySchema.parse({ ...baseBody, points: 9999 }).points).toBe(9999)
+    expect(activityCreateBodySchema.safeParse({ ...baseBody, points: -1 }).success).toBe(false)
+    expect(activityCreateBodySchema.safeParse({ ...baseBody, points: 10000 }).success).toBe(false)
+    expect(activityCreateBodySchema.safeParse({ ...baseBody, points: 1.5 }).success).toBe(false)
+  })
+
+  it('update schema accepts optional points', () => {
+    expect(activityUpdateBodySchema.parse({ points: 5 })).toEqual({ points: 5 })
   })
 })

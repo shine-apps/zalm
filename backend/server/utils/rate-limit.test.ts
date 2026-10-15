@@ -24,6 +24,8 @@ describe('getRateLimitTier', () => {
     expect(getRateLimitTier('/api/auth/sign-up', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/auth/phone-number/send-otp', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/admin/users', 'POST')).toBe('sensitive')
+    expect(getRateLimitTier('/api/admin/points', 'POST')).toBe('sensitive')
+    expect(getRateLimitTier('/api/admin/points/abc/reverse', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/activities/abc/register', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/activities/abc/check-in', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/admin/activities/abc/manual-check-in', 'POST')).toBe('sensitive')
@@ -32,6 +34,7 @@ describe('getRateLimitTier', () => {
 
   it('does not misclassify sibling paths of sensitive endpoints', () => {
     expect(getRateLimitTier('/api/admin/users', 'GET')).toBe('global')
+    expect(getRateLimitTier('/api/admin/points/ledger', 'GET')).toBe('global')
     expect(getRateLimitTier('/api/activities/abc/reviews', 'POST')).toBe('global')
     expect(getRateLimitTier('/api/share/wx-config', 'GET')).toBe('global')
   })
