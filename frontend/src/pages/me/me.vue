@@ -100,6 +100,7 @@ function pickThemeBrand() {
 // admin 角色额外展示后台管理入口，通过 webview 加载 PC 后台页面
 const menuGroups = computed<MeMenuItem[][]>(() => {
   const firstGroup: MeMenuItem[] = [
+    { key: 'user-home', label: '个人主页', icon: 'i-carbon-user-avatar', url: '/pages/user-home/index' },
     { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', url: '/pages/activity/mine' },
     { key: 'points-rank', label: '积分排行', icon: 'i-carbon-trophy', url: '/pages/points/index' },
     { key: 'points-ledger', label: '我的积分明细', icon: 'i-carbon-receipt', url: '/pages/points/ledger' },
