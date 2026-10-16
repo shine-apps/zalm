@@ -5,57 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1791422608727,
-      "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1791465419089,
-      "tag": "0001_many_magdalene",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1791703950289,
-      "tag": "0002_clever_white_tiger",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1791711427837,
-      "tag": "0003_odd_talisman",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1791874430086,
-      "tag": "0004_flippant_vindicator",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1791982827105,
-      "tag": "0005_abnormal_winter_soldier",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1792077768641,
-      "tag": "0006_tranquil_vampiro",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1792138765650,
-      "tag": "0007_wakeful_jane_foster",
+      "when": 1792143192163,
+      "tag": "0000_initial_schema",
       "breakpoints": true
     }
   ]

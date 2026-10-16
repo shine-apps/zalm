@@ -153,8 +153,16 @@ bun run dev:h5       # http://localhost:3333
   `timestamp({ withTimezone: true })`。
 - 管理员建用户走 repository 直接入库 + `hashPassword`（`better-auth/crypto`）；
   自助注册经 Better Auth `databaseHooks.user.create.after` 挂默认 `user` 角色。
-- 改表流程：编辑 `schema.ts`/`auth-schema.ts` → `bun run db:generate` → 提交生成的
-  `drizzle/*.sql` → `bun run db:migrate`。
+- 改表流程：编辑 `schema.ts`/`auth-schema.ts` → `bun run db:generate -- --name <语义名>`
+  → 提交生成的 `drizzle/*.sql` → `bun run db:migrate`。
+- **迁移文件名必须带语义信息**：每次生成时必须通过 `--name` 参数传入描述性的 snake_case
+  名称（如 `add_points_tables`、`activity_template`、`notification_subsystem`），
+  禁止省略 `--name` 使用 drizzle-kit 默认生成的随机漫画名（如 `0000_wakeful_jane_foster.sql`）。
+  当前基线迁移为 `0000_initial_schema.sql`（已将历史 8 条零散迁移合并为一条首次迁移）。
+- **旧数据库迁移历史重置**：已有数据库（dev/staging/prod）的 `__drizzle_migrations`
+  元表仍记录旧 8 个迁移标签，需要先执行 `TRUNCATE __drizzle_migrations;`
+  清空，再 `bun run db:migrate` 重新应用唯一的 `0000_initial_schema`
+  （表结构已存在，drizzle 会跳过已完成的迁移）。开发环境可直接 drop+recreate 库。
 
 ### 7.4 Nuxt UI v4 易踩坑（实测）
 
