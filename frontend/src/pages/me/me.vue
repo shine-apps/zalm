@@ -15,7 +15,7 @@ import { toLoginPage } from '@/utils/toLoginPage'
 // 菜单图标经数据动态绑定，需在此注释占位，确保 UnoCSS 扫描生成对应样式：
 // i-carbon-calendar i-carbon-star i-carbon-notification i-carbon-trophy i-carbon-receipt
 // i-carbon-security i-carbon-locked i-carbon-chat i-carbon-information
-// i-carbon-contrast i-carbon-color-palette
+// i-carbon-contrast i-carbon-color-palette i-carbon-cdi
 
 definePage({
   style: {
@@ -97,27 +97,39 @@ function pickThemeBrand() {
 }
 
 // 菜单分组（仅「关于众爱联盟」已落地，其余为标准模板预留入口）
-const menuGroups = computed<MeMenuItem[][]>(() => [
-  [
+// admin 角色额外展示后台管理入口，通过 webview 加载 PC 后台页面
+const menuGroups = computed<MeMenuItem[][]>(() => {
+  const firstGroup: MeMenuItem[] = [
     { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', url: '/pages/activity/mine' },
     { key: 'points-rank', label: '积分排行', icon: 'i-carbon-trophy', url: '/pages/points/index' },
     { key: 'points-ledger', label: '我的积分明细', icon: 'i-carbon-receipt', url: '/pages/points/ledger' },
     { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
     { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', url: '/pages/notification/index', dot: notifStore.hasUnread },
-  ],
-  [
-    { key: 'security', label: '账号与安全', icon: 'i-carbon-security' },
-    { key: 'privacy', label: '隐私设置', icon: 'i-carbon-locked' },
-  ],
-  [
-    { key: 'feedback', label: '意见反馈', icon: 'i-carbon-chat' },
-    { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', url: '/pages/about/about' },
-  ],
-  [
-    { key: 'theme-mode', label: `外观模式（${modeLabel.value}）`, icon: 'i-carbon-contrast', action: pickThemeMode },
-    { key: 'theme-brand', label: `主题色（${brandLabel.value}）`, icon: 'i-carbon-color-palette', action: pickThemeBrand },
-  ],
-])
+  ]
+  if (auth.isAdmin) {
+    firstGroup.push({
+      key: 'admin-points',
+      label: '积分管理',
+      icon: 'i-carbon-cdi',
+      url: '/pages/admin/webview?path=%2Fadmin%2Fpoints&title=%E7%A7%AF%E5%88%86%E7%AE%A1%E7%90%86',
+    })
+  }
+  return [
+    firstGroup,
+    [
+      { key: 'security', label: '账号与安全', icon: 'i-carbon-security' },
+      { key: 'privacy', label: '隐私设置', icon: 'i-carbon-locked' },
+    ],
+    [
+      { key: 'feedback', label: '意见反馈', icon: 'i-carbon-chat' },
+      { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', url: '/pages/about/about' },
+    ],
+    [
+      { key: 'theme-mode', label: `外观模式（${modeLabel.value}）`, icon: 'i-carbon-contrast', action: pickThemeMode },
+      { key: 'theme-brand', label: `主题色（${brandLabel.value}）`, icon: 'i-carbon-color-palette', action: pickThemeBrand },
+    ],
+  ]
+})
 
 // 副标题优先展示脱敏手机号，其次邮箱
 const subtitle = computed(() =>

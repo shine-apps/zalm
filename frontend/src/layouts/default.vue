@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import HeaderMenu from '@/components/header-menu/header-menu.vue'
+import type { HeaderMenuItem } from '@/components/header-menu/header-menu.vue'
 import { useAuthStore } from '@/store/auth'
 import { isPageTabbar } from '@/tabbar/store'
 import { HOME_PAGE } from '@/utils'
@@ -28,6 +30,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/pages/login/index': '登录',
   '/pages/me/me': '我的',
   '/pages/me/profile': '个人信息',
+  '/pages/notification/index': '消息中心',
 }
 
 // 当前页标题与是否为 tab 页：布局组件随页面创建而挂载，onMounted 中读取页面栈即可
@@ -56,10 +59,6 @@ function openMenu() {
   menuOpen.value = true
 }
 
-function closeMenu() {
-  menuOpen.value = false
-}
-
 /** tab 页最左侧图标：回首页 */
 function goHome() {
   uni.switchTab({ url: HOME_PAGE })
@@ -79,45 +78,48 @@ function goBack() {
     uni.switchTab({ url: HOME_PAGE })
 }
 
-interface HeaderMenuItem {
-  key: string
-  label: string
-  /** 完整 UnoCSS 图标类名（静态写死，确保被扫描生成） */
-  icon: string
-  danger?: boolean
-  action: () => void
+/** 导航栏铃铛图标：进消息中心 */
+function goNotifications() {
+  uni.navigateTo({ url: '/pages/notification/index' })
 }
 
+/** 暂未开放功能的占位提示 */
 function showComingSoon() {
-  closeMenu()
   uni.showToast({ title: '功能开发中', icon: 'none' })
 }
 
-function switchTabFromMenu(url: string) {
-  closeMenu()
-  uni.switchTab({ url })
-}
-
-/** 菜单跳转普通（非 tab）页面 */
-function navigateFromMenu(url: string) {
-  closeMenu()
-  uni.navigateTo({ url })
-}
-
-async function handleLogout() {
-  closeMenu()
-  await auth.logout()
-  uni.reLaunch({ url: '/pages/login/index' })
-}
-
 const menuItems: HeaderMenuItem[] = [
-  { key: 'home', label: '首页', icon: 'i-carbon-home', action: () => switchTabFromMenu('/pages/index/index') },
-  { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', action: showComingSoon },
-  { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star', action: showComingSoon },
-  { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', action: showComingSoon },
-  { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information', action: () => navigateFromMenu('/pages/about/about') },
-  { key: 'logout', label: '退出登录', icon: 'i-carbon-logout', danger: true, action: () => void handleLogout() },
+  { key: 'home', label: '首页', icon: 'i-carbon-home' },
+  { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar' },
+  { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
+  { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification' },
+  { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information' },
+  { key: 'logout', label: '退出登录', icon: 'i-carbon-logout', danger: true },
 ]
+
+async function onMenuSelect(key: string) {
+  switch (key) {
+    case 'home':
+      uni.switchTab({ url: '/pages/index/index' })
+      break
+    case 'activities':
+      uni.switchTab({ url: '/pages/activity/activity' })
+      break
+    case 'favorites':
+      uni.showToast({ title: '功能开发中', icon: 'none' })
+      break
+    case 'notifications':
+      uni.navigateTo({ url: '/pages/notification/index' })
+      break
+    case 'about':
+      uni.navigateTo({ url: '/pages/about/about' })
+      break
+    case 'logout':
+      await auth.logout()
+      uni.reLaunch({ url: '/pages/login/index' })
+      break
+  }
+}
 </script>
 
 <template>
@@ -152,7 +154,7 @@ const menuItems: HeaderMenuItem[] = [
             <view class="h-8 w-8 center rounded-full bg-hover text-sub" @click="goMe">
               <view class="i-carbon-user text-4" />
             </view>
-            <view class="h-8 w-8 center rounded-full bg-hover text-sub" @click="showComingSoon">
+            <view class="h-8 w-8 center rounded-full bg-hover text-sub" @click="goNotifications">
               <view class="i-carbon-notification text-4" />
             </view>
           </template>
@@ -168,26 +170,12 @@ const menuItems: HeaderMenuItem[] = [
       <slot />
     </view>
 
-    <!-- 三条线弹出菜单：透明遮罩 + 下拉卡片 -->
-    <template v-if="menuOpen">
-      <view class="fixed inset-0 z-[1001]" @click="closeMenu" />
-      <view
-        class="fixed left-3 z-[1002] w-130 overflow-hidden rounded-3 bg-card pb-4 shadow-lg"
-        :style="{ top: `${headerTotalHeight + 4}px` }"
-      >
-        <view
-          v-for="(item, index) in menuItems" :key="item.key"
-          class="flex items-center px-4 py-2.5 text-3.5"
-          :class="[
-            index > 0 ? 'border-t border-line' : '',
-            item.danger ? ' text-danger' : 'text-sub',
-          ]"
-          @click="item.action"
-        >
-          <view :class="item.icon" class="text-4" />
-          <text class="ml-2">{{ item.label }}</text>
-        </view>
-      </view>
-    </template>
+    <!-- 三条线弹出菜单组件 -->
+    <HeaderMenu
+      v-model:show="menuOpen"
+      :top-offset="headerTotalHeight"
+      :menu-items="menuItems"
+      @select="onMenuSelect"
+    />
   </view>
 </template>
