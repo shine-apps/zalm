@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import type { ActivityCategory, ActivityPayload } from '@/api/activity'
 import type { MediaItem } from '@/api/media'
+import type { ActivityTemplate, ActivityTemplateSummary } from '@/api/activity-template'
+import { getActivityTemplate, listActivityTemplates } from '@/api/activity-template'
 import { ACTIVITY_CATEGORIES, createActivity, getActivity, updateActivity } from '@/api/activity'
 import { useAuthStore } from '@/store/auth'
 import type { DatetimePickerInstance } from '@/utils/wd-picker-types'
@@ -63,7 +65,111 @@ onLoad((options) => {
     uni.setNavigationBarTitle({ title: '编辑活动' })
     void prefill(options.id)
   }
+  markPristine()
 })
+
+// —— 活动模板（仅新建模式）：选用后把模板已预设的字段并入表单，缺失项保持当前值 ——
+const templatePanelShow = ref(false)
+const templateLoading = ref(false)
+const templateListLoaded = ref(false)
+const templateList = ref<ActivityTemplateSummary[]>([])
+const selectedTemplate = ref<ActivityTemplateSummary | null>(null)
+/** 表单快照：用于判断切换模板前用户是否已手动改过内容。 */
+let pristineSnapshot = ''
+
+function markPristine() {
+  pristineSnapshot = JSON.stringify(form.value)
+}
+
+function isFormPristine() {
+  return JSON.stringify(form.value) === pristineSnapshot
+}
+
+async function openTemplatePanel() {
+  templatePanelShow.value = true
+  if (!templateListLoaded.value)
+    await loadTemplates()
+}
+
+async function loadTemplates() {
+  templateLoading.value = true
+  try {
+    templateList.value = await listActivityTemplates()
+    templateListLoaded.value = true
+  }
+  catch {
+    // 拦截器已提示
+  }
+  finally {
+    templateLoading.value = false
+  }
+}
+
+function chooseNoTemplate() {
+  selectedTemplate.value = null
+  templatePanelShow.value = false
+}
+
+function clearTemplate() {
+  // 只解除模板关联，不清空已填入表单的内容
+  selectedTemplate.value = null
+}
+
+function pickTemplate(t: ActivityTemplateSummary) {
+  if (selectedTemplate.value?.id === t.id) {
+    templatePanelShow.value = false
+    return
+  }
+  if (isFormPristine()) {
+    void applyTemplate(t)
+    return
+  }
+  uni.showModal({
+    title: '套用模板',
+    content: '套用模板将覆盖当前已填写的内容，确定继续吗？',
+    confirmText: '覆盖填写',
+    success: (res) => {
+      if (res.confirm)
+        void applyTemplate(t)
+    },
+  })
+}
+
+async function applyTemplate(t: ActivityTemplateSummary) {
+  try {
+    const detail = await getActivityTemplate(t.id)
+    mergeTemplateIntoForm(detail)
+    selectedTemplate.value = t
+    templatePanelShow.value = false
+    markPristine()
+  }
+  catch {
+    // 拦截器已提示
+  }
+}
+
+function mergeTemplateIntoForm(t: ActivityTemplate) {
+  if (t.title)
+    form.value.title = t.title
+  form.value.description = t.description ?? ''
+  if (t.coverUrl)
+    form.value.coverUrl = t.coverUrl
+  if (t.location)
+    form.value.location = { ...t.location }
+  if (t.categories.length)
+    form.value.categories = [...t.categories]
+  if (t.startTime)
+    form.value.startTs = new Date(t.startTime).getTime()
+  if (t.endTime)
+    form.value.endTs = new Date(t.endTime).getTime()
+  if (t.registerDeadline) {
+    form.value.hasDeadline = true
+    form.value.deadlineTs = new Date(t.registerDeadline).getTime()
+  }
+  form.value.capacityText = t.capacity === null ? '' : String(t.capacity)
+  if (t.points !== null)
+    form.value.pointsText = String(t.points)
+}
 
 async function prefill(id: string) {
   try {
@@ -250,8 +356,44 @@ async function onSubmit() {
 
 <template>
   <view class="min-h-screen bg-page px-3 py-3">
+    <!-- 活动模板（仅新建模式） -->
+    <view v-if="!editingId" class="rounded-3 bg-card p-4 shadow-sm">
+      <view class="flex items-center">
+        <text class="text-4 text-ink font-medium">活动模板</text>
+        <view v-if="selectedTemplate" class="ml-auto flex items-center text-3.5">
+          <text class="text-primary-soft-text mr-3" @click="openTemplatePanel">重新选择</text>
+          <text class="text-muted" @click="clearTemplate">清除</text>
+        </view>
+      </view>
+      <view
+        class="mt-3 flex items-center rounded-2 bg-hover px-3 py-2.5"
+        @click="openTemplatePanel"
+      >
+        <template v-if="selectedTemplate">
+          <view class="i-carbon-template mr-2 shrink-0 text-16px text-primary" />
+          <view class="min-w-0 flex-1">
+            <text class="block text-4 text-ink">{{ selectedTemplate.name }}</text>
+            <view v-if="selectedTemplate.categories.length" class="mt-1 flex flex-wrap">
+              <text
+                v-for="c in selectedTemplate.categories"
+                :key="c"
+                class="text-primary-soft-text mr-1 rounded bg-primary-soft px-1.5 py-0.5 text-2.5"
+              >
+                {{ c }}
+              </text>
+            </view>
+          </view>
+        </template>
+        <template v-else>
+          <view class="i-carbon-template mr-2 shrink-0 text-16px text-muted" />
+          <text class="flex-1 text-3.5 text-muted">点击选择模板，自动填充常用信息（时间仍需自行确认）</text>
+        </template>
+        <view class="i-carbon-chevron-right ml-2 shrink-0 text-4 text-muted" />
+      </view>
+    </view>
+
     <!-- 标题 -->
-    <view class="rounded-3 bg-card p-4 shadow-sm">
+    <view class="rounded-3 bg-card p-4 shadow-sm" :class="{ 'mt-3': !editingId }">
       <text class="text-4 text-ink font-medium">活动标题</text>
       <input
         v-model="form.title"
@@ -446,5 +588,76 @@ async function onSubmit() {
       title="选择报名截止时间"
       @confirm="onDeadlinePick"
     />
+
+    <!-- 活动模板选择面板（仅新建模式） -->
+    <wd-popup
+      v-if="!editingId"
+      v-model="templatePanelShow"
+      position="bottom"
+      round
+      safe-area-inset-bottom
+    >
+      <view class="max-h-[70vh] flex flex-col">
+        <view class="flex items-center px-4 pt-4">
+          <text class="text-4 text-ink font-medium">选择活动模板</text>
+          <view
+            class="i-carbon-close ml-auto text-18px text-muted"
+            @click="templatePanelShow = false"
+          />
+        </view>
+        <scroll-view scroll-y class="mt-2 px-3 pb-3" style="max-height: 56vh">
+          <!-- 空白创建 -->
+          <view
+            class="mb-2 flex items-center rounded-2 bg-hover p-3"
+            @click="chooseNoTemplate"
+          >
+            <view class="i-carbon-document-blank mr-2 text-16px text-muted" />
+            <text class="flex-1 text-4 text-ink">不使用模板（空白创建）</text>
+            <view
+              v-if="!selectedTemplate"
+              class="i-carbon-checkmark text-18px text-primary"
+            />
+          </view>
+
+          <view v-if="templateLoading" class="py-8 text-center text-3.5 text-muted">
+            加载中…
+          </view>
+          <view
+            v-else-if="!templateList.length"
+            class="px-2 py-8 text-center text-3.5 text-muted leading-6"
+          >
+            暂无模板
+            <text class="block">可在活动详情页把已有活动「存为模板」</text>
+          </view>
+
+          <view
+            v-for="t in templateList"
+            :key="t.id"
+            class="mb-2 rounded-2 bg-hover p-3"
+            @click="pickTemplate(t)"
+          >
+            <view class="flex items-center">
+              <text class="text-4 text-ink font-medium">{{ t.name }}</text>
+              <view
+                v-if="selectedTemplate?.id === t.id"
+                class="i-carbon-checkmark ml-auto text-18px text-primary"
+              />
+            </view>
+            <text v-if="t.title" class="mt-1 block text-3 text-sub">
+              标题：{{ t.title }}
+            </text>
+            <view v-if="t.categories.length" class="mt-1.5 flex flex-wrap">
+              <text
+                v-for="c in t.categories"
+                :key="c"
+                class="text-primary-soft-text mb-1 mr-1 rounded bg-primary-soft px-1.5 py-0.5 text-2.5"
+              >
+                {{ c }}
+              </text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </wd-popup>
   </view>
 </template>

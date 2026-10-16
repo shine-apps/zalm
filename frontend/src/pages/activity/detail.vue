@@ -6,6 +6,7 @@ import {
   getActivity,
   registerToActivity,
 } from '@/api/activity'
+import { createTemplateFromActivity } from '@/api/activity-template'
 import { resolveMediaUrl } from '@/api/profile'
 import { useShare } from '@/share/useShare'
 import { useAuthStore } from '@/store/auth'
@@ -153,6 +154,48 @@ function goRegistrations() {
 
 function goMedia() {
   uni.navigateTo({ url: `/pages/activity/media?id=${activityId.value}` })
+}
+
+/** 组织者把当前活动存为模板：只复制非排期字段，时间留空、相册不带入。 */
+function saveAsTemplate() {
+  if (!detail.value)
+    return
+  const fallbackName = detail.value.title
+  uni.showModal({
+    title: '存为活动模板',
+    content: '将复制标题、分类、详情、封面、地点、人数上限、积分；活动时间不会保存。',
+    editable: true,
+    placeholderText: `模板名称，留空则用活动标题「${fallbackName}」`,
+    confirmText: '保存模板',
+    success: (res) => {
+      if (!res.confirm)
+        return
+      const name = (res.content ?? '').trim() || fallbackName
+      if (name.length < 2 || name.length > 30) {
+        uni.showToast({ title: '模板名称需 2~30 个字', icon: 'none' })
+        return
+      }
+      void submitSaveAsTemplate(name)
+    },
+  })
+}
+
+async function submitSaveAsTemplate(name: string) {
+  if (acting.value)
+    return
+  acting.value = true
+  uni.showLoading({ title: '保存中', mask: true })
+  try {
+    await createTemplateFromActivity(activityId.value, name)
+    uni.showToast({ title: '已存为模板', icon: 'success' })
+  }
+  catch {
+    // 拦截器已提示
+  }
+  finally {
+    acting.value = false
+    uni.hideLoading()
+  }
 }
 
 function doCancelActivity() {
@@ -391,6 +434,12 @@ onUnload(() => {
               @click="goMedia"
             >
               <view class="i-carbon-cloud-upload mr-1 text-14px" /> 上传相册
+            </view>
+            <view
+              class="text-primary-soft-text mb-2 mr-3 flex items-center rounded-full bg-primary-soft px-4 py-1.5 text-3.5"
+              @click="saveAsTemplate"
+            >
+              <view class="i-carbon-template mr-1 text-14px" /> 存为模板
             </view>
             <view
               v-if="!isCancelled"

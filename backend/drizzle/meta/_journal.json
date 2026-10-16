@@ -43,6 +43,13 @@
       "when": 1791982827105,
       "tag": "0005_abnormal_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792077768641,
+      "tag": "0006_tranquil_vampiro",
+      "breakpoints": true
     }
   ]
 }

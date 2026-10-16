@@ -25,10 +25,47 @@ async function load() {
   try {
     const res = await $fetch<{ code: 'OK', data: SettingRow[] }>('/api/admin/settings', { credentials: 'include' })
     rows.value = res.data
+    qqMapKeyInput.value = findStringSetting(SETTING_KEYS.MAP_QQMAP_KEY)
   } catch (err) {
     toast.add({ title: apiErrorMessage(err, '加载设置列表失败'), color: 'error' })
   } finally {
     loading.value = false
+  }
+}
+
+function findStringSetting(key: string): string {
+  const v = rows.value.find(r => r.key === key)?.value
+  return typeof v === 'string' ? v : ''
+}
+
+// —— 第三方集成：腾讯位置服务 key ——
+const qqMapKeyInput = ref('')
+const qqMapKeySaving = ref(false)
+
+async function saveQqMapKey() {
+  qqMapKeySaving.value = true
+  const key = SETTING_KEYS.MAP_QQMAP_KEY
+  const exists = rows.value.some(r => r.key === key)
+  try {
+    if (exists) {
+      await $fetch(`/api/admin/settings/${encodeURIComponent(key)}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        body: { value: qqMapKeyInput.value.trim() }
+      })
+    } else {
+      await $fetch('/api/admin/settings', {
+        method: 'POST',
+        credentials: 'include',
+        body: { key, value: qqMapKeyInput.value.trim() }
+      })
+    }
+    toast.add({ title: '腾讯位置服务 Key 已保存', color: 'success' })
+    await load()
+  } catch (err) {
+    toast.add({ title: apiErrorMessage(err), color: 'error' })
+  } finally {
+    qqMapKeySaving.value = false
   }
 }
 
@@ -141,6 +178,55 @@ onMounted(load)
         @click="openCreate"
       />
     </div>
+
+    <UCard>
+      <div class="space-y-3">
+        <div class="flex items-start gap-2">
+          <UIcon
+            name="i-lucide-map-pinned"
+            class="mt-0.5 size-5 text-primary shrink-0"
+          />
+          <div>
+            <h2 class="text-base font-medium">
+              腾讯位置服务 Key
+            </h2>
+            <p class="text-sm text-muted mt-0.5">
+              用于活动模板表单的地图选点。该值会通过公开接口
+              <span class="font-mono">GET /api/settings</span>
+              返回，不属于密钥；请在
+              <a
+                href="https://lbs.qq.com/dev/console/key/manage"
+                target="_blank"
+                rel="noopener"
+                class="text-primary inline-flex items-center gap-0.5 underline underline-offset-2"
+              >
+                腾讯位置服务控制台
+                <UIcon
+                  name="i-lucide-external-link"
+                  class="size-3"
+                />
+              </a>
+              为 Key 开启 WebServiceAPI，并把后台域名（含本地
+              <span class="font-mono">localhost</span>
+              ）加入授权白名单。
+            </p>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <UInput
+            v-model="qqMapKeyInput"
+            class="flex-1 font-mono"
+            placeholder="在腾讯位置服务控制台申请后粘贴，例如 OBXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+          />
+          <UButton
+            label="保存 Key"
+            icon="i-lucide-save"
+            :loading="qqMapKeySaving"
+            @click="saveQqMapKey"
+          />
+        </div>
+      </div>
+    </UCard>
 
     <UCard>
       <UTable

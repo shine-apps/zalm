@@ -24,7 +24,7 @@ export function collectTimeIssues(input: {
 }
 
 /** ISO 字符串 → Date（非法值在 transform 阶段发 issue）。 */
-const isoDate = z.string().trim().min(1).transform((value, ctx) => {
+export const isoDate = z.string().trim().min(1).transform((value, ctx) => {
   const d = new Date(value)
   if (Number.isNaN(d.getTime())) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: '时间格式不正确' })

@@ -15,6 +15,8 @@ import {
   insertCredentialAccount,
   setUserBanned
 } from './repositories/users'
+import { createSetting, settingExists } from './repositories/settings'
+import { DEFAULT_SETTINGS } from '../utils/settings-keys'
 
 /**
  * 种子数据：
@@ -42,6 +44,15 @@ async function ensureRole(name: string, description: string) {
   return created
 }
 
+/** 幂等确保预置设置键存在；已存在的值（含管理员已填的 key）绝不覆盖。 */
+async function ensureDefaultSettings() {
+  for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+    if (await settingExists(key)) continue
+    await createSetting(key, value)
+    logger.success(`已创建预置设置：${key}`)
+  }
+}
+
 async function main() {
   const env = getEnv()
   if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD) {
@@ -49,6 +60,8 @@ async function main() {
   }
 
   await pingDb()
+
+  await ensureDefaultSettings()
 
   for (const r of ROLES) {
     await ensureRole(r.name, r.description)

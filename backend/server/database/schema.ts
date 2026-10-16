@@ -171,6 +171,45 @@ export const activityMedia = pgTable(
   t => [unique('activity_media_activity_media_unique').on(t.activityId, t.mediaId)]
 )
 
+/**
+ * 活动模板：admin 在 PC 后台维护；组织者也可在活动详情页「存为模板」。
+ * 除 name 外字段均可空——NULL/空数组表示「模板未预设该项」，创建活动时保持空白由组织者补填；
+ * points 用 NULL 区分「未预设」与「预设为 0 分」。
+ * 模板与活动无持久关联：活动一经创建即独立，模板之后被修改/删除不影响已有活动，故不存模板来源 id。
+ */
+export const activityTemplate = pgTable('activity_template', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  // 仅后台/模板选择器展示的模板名称（非活动标题）
+  name: text('name').notNull(),
+  title: text('title'),
+  description: text('description').notNull().default(''),
+  coverUrl: text('cover_url'),
+  // 地点整体可空（缺失=不预设地点）
+  location: jsonb('location').$type<ActivityLocation>(),
+  // 空数组=未预设分类
+  categories: text('categories')
+    .array()
+    .$type<ActivityCategory[]>()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+  // 时间三项允许为空：模板通常不带排期，由组织者创建时填写
+  startTime: timestamp('start_time', { withTimezone: true }),
+  endTime: timestamp('end_time', { withTimezone: true }),
+  registerDeadline: timestamp('register_deadline', { withTimezone: true }),
+  capacity: integer('capacity'),
+  points: integer('points'),
+  createdBy: text('created_by')
+    .notNull()
+    .references(() => user.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date())
+})
+
 // ===== 积分 =====
 
 export const POINTS_CATEGORIES = ['activity', 'donation'] as const
