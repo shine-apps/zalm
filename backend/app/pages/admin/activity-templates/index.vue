@@ -347,6 +347,7 @@ onMounted(load)
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #name-cell="{ row }">
           <span class="font-medium">{{ row.original.name }}</span>
@@ -409,6 +410,79 @@ onMounted(load)
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无活动模板
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 space-y-2"
+          >
+            <p class="font-medium">
+              {{ row.name }}
+            </p>
+            <p
+              v-if="row.title"
+              class="text-sm text-muted"
+            >
+              预设标题：{{ row.title }}
+            </p>
+            <div
+              v-if="row.categories.length"
+              class="flex flex-wrap gap-1"
+            >
+              <UBadge
+                v-for="c in row.categories"
+                :key="c"
+                color="primary"
+                variant="subtle"
+                size="sm"
+              >
+                {{ c }}
+              </UBadge>
+            </div>
+            <p class="text-xs text-muted">
+              创建人：{{ row.creatorName || row.creatorEmail }} · 更新于 {{ formatDateTime(row.updatedAt) }}
+            </p>
+            <div class="flex gap-2 pt-1">
+              <UButton
+                color="neutral"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-pencil"
+                label="编辑"
+                class="flex-1"
+                @click="openEdit(row)"
+              />
+              <UButton
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-trash-2"
+                label="删除"
+                class="flex-1"
+                @click="askDelete(row)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="total > pageSize"

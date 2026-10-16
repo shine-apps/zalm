@@ -220,12 +220,12 @@ onMounted(async () => {
           共 {{ total }} 名用户
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 w-full sm:w-auto">
         <UInput
           v-model="searchInput"
           placeholder="搜索姓名 / 邮箱 / 手机号"
           icon="i-lucide-search"
-          class="w-56 sm:w-64"
+          class="flex-1 sm:flex-none sm:w-64"
           clearable
         />
         <UButton
@@ -241,6 +241,7 @@ onMounted(async () => {
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #phoneNumber-cell="{ row }">
           {{ row.original.phoneNumber || '—' }}
@@ -315,6 +316,102 @@ onMounted(async () => {
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无用户数据
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 space-y-2"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-medium truncate">
+                  {{ row.name }}
+                </p>
+                <p class="text-sm text-muted truncate">
+                  {{ row.email }}
+                </p>
+              </div>
+              <UBadge
+                :color="row.banned ? 'error' : 'success'"
+                variant="subtle"
+                size="sm"
+                class="shrink-0"
+              >
+                {{ row.banned ? '已停用' : '正常' }}
+              </UBadge>
+            </div>
+            <p class="text-sm text-muted">
+              {{ row.phoneNumber || '未填写手机号' }}
+            </p>
+            <div
+              v-if="row.roles.length"
+              class="flex flex-wrap gap-1"
+            >
+              <UBadge
+                v-for="name in row.roles"
+                :key="name"
+                :color="name === 'admin' ? 'primary' : 'neutral'"
+                :variant="(roleVariant(name) as 'solid' | 'subtle')"
+                size="sm"
+              >
+                {{ name }}
+              </UBadge>
+            </div>
+            <p class="text-xs text-muted">
+              注册于 {{ formatDateTime(row.createdAt) }}
+            </p>
+            <div class="flex gap-2 pt-1">
+              <UButton
+                color="neutral"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-user-cog"
+                label="角色"
+                class="flex-1"
+                @click="openAssign(row)"
+              />
+              <UButton
+                :color="row.banned ? 'success' : 'neutral'"
+                variant="soft"
+                size="sm"
+                :icon="row.banned ? 'i-lucide-play' : 'i-lucide-ban'"
+                :label="row.banned ? '启用' : '停用'"
+                :disabled="row.id === currentUser?.id"
+                class="flex-1"
+                @click="toggleBan(row)"
+              />
+              <UButton
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-trash-2"
+                label="删除"
+                :disabled="row.id === currentUser?.id"
+                class="flex-1"
+                @click="askDelete(row)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="total > pageSize"

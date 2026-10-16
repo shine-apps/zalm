@@ -102,10 +102,12 @@ const mobileOpen = ref(false)
             color="neutral"
             variant="ghost"
             icon="i-lucide-log-out"
-            label="退出"
             size="sm"
+            aria-label="退出登录"
             @click="onLogout"
-          />
+          >
+            <span class="hidden sm:inline">退出</span>
+          </UButton>
         </div>
       </header>
 
@@ -114,31 +116,33 @@ const mobileOpen = ref(false)
       </main>
     </div>
 
-    <!-- 移动端抽屉菜单 -->
+    <!-- 移动端抽屉菜单（正文必须放 #body，默认插槽是触发器） -->
     <USlideover
       v-model:open="mobileOpen"
       side="left"
       title="导航"
       class="md:hidden"
     >
-      <nav class="p-2 space-y-1">
-        <NuxtLink
-          v-for="item in visibleNav"
-          :key="item.to"
-          :to="item.to"
-          class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium"
-          :class="isActive(item.to)
-            ? 'bg-primary text-white'
-            : 'text-muted hover:bg-elevated hover:text-highlighted'"
-          @click="mobileOpen = false"
-        >
-          <UIcon
-            :name="item.icon"
-            class="size-4"
-          />
-          {{ item.label }}
-        </NuxtLink>
-      </nav>
+      <template #body>
+        <nav class="p-2 space-y-1">
+          <NuxtLink
+            v-for="item in visibleNav"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm font-medium"
+            :class="isActive(item.to)
+              ? 'bg-primary text-white'
+              : 'text-muted hover:bg-elevated hover:text-highlighted'"
+            @click="mobileOpen = false"
+          >
+            <UIcon
+              :name="item.icon"
+              class="size-4"
+            />
+            {{ item.label }}
+          </NuxtLink>
+        </nav>
+      </template>
     </USlideover>
   </div>
 </template>

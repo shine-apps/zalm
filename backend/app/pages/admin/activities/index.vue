@@ -145,17 +145,17 @@ onMounted(() => {
       </p>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2">
+    <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
       <USelect
         v-model="state"
         :items="stateItems"
-        class="w-40"
+        class="w-full sm:w-40"
       />
       <UInput
         v-model="searchInput"
         placeholder="搜索标题 / 地点"
         icon="i-lucide-search"
-        class="w-56 sm:w-64"
+        class="w-full sm:w-64"
         clearable
       />
     </div>
@@ -165,6 +165,7 @@ onMounted(() => {
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #startTime-cell="{ row }">
           <span class="text-sm text-muted">{{ formatDateTime(row.original.startTime) }}</span>
@@ -216,6 +217,83 @@ onMounted(() => {
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无活动数据
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 space-y-2"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-medium min-w-0">
+                {{ row.title }}
+              </p>
+              <UBadge
+                :color="(stateColor(row.state) as 'primary' | 'success' | 'neutral')"
+                variant="subtle"
+                size="sm"
+                class="shrink-0"
+              >
+                {{ STATE_LABEL[row.state] }}
+              </UBadge>
+            </div>
+            <p class="text-sm text-muted flex items-center gap-1.5">
+              <UIcon
+                name="i-lucide-clock"
+                class="size-3.5 shrink-0"
+              />
+              {{ formatDateTime(row.startTime) }}
+            </p>
+            <p class="text-sm text-muted flex items-center gap-1.5">
+              <UIcon
+                name="i-lucide-map-pin"
+                class="size-3.5 shrink-0"
+              />
+              {{ row.location.name }}
+            </p>
+            <p class="text-sm text-muted">
+              报名 {{ capacityText(row) }} · 已签到 {{ row.checkedInCount }}
+            </p>
+            <div class="flex gap-2 pt-1">
+              <UButton
+                color="primary"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-eye"
+                label="查看 / 名单"
+                class="flex-1"
+                @click="openDetail(row.id)"
+              />
+              <UButton
+                v-if="row.status === 'published'"
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-ban"
+                label="取消活动"
+                @click="askCancel(row)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="total > pageSize"

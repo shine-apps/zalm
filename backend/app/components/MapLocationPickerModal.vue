@@ -506,7 +506,7 @@ onBeforeUnmount(teardown)
           <div class="relative overflow-hidden rounded-md border border-default">
             <div
               ref="mapEl"
-              class="h-[420px] w-full bg-muted/30"
+              class="h-[300px] w-full bg-muted/30 sm:h-[420px]"
             />
             <div
               v-if="mapLoading"

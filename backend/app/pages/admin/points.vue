@@ -71,6 +71,13 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleString('zh-CN', { hour12: false })
 }
 
+function targetLabel(row: LedgerRow): string {
+  if (row.activityTitle) return row.activityTitle
+  if (row.donationKind === 'money') return '捐款'
+  if (row.donationKind === 'goods') return '物资'
+  return '—'
+}
+
 async function load() {
   loading.value = true
   try {
@@ -289,31 +296,34 @@ onMounted(load)
     </div>
 
     <UCard>
-      <div class="flex gap-2 items-end flex-wrap">
-        <label class="text-sm space-y-1">
-          <span class="text-muted">类别</span>
-          <USelect
-            v-model="filters.category"
-            :items="[{ label: '全部', value: 'all' }, { label: '活动积分', value: 'activity' }, { label: '捐献积分', value: 'donation' }]"
-            class="w-32"
-          />
-        </label>
-        <label class="text-sm space-y-1">
-          <span class="text-muted">来源</span>
-          <USelect
-            v-model="filters.source"
-            :items="[{ label: '全部', value: 'all' }, { label: '签到奖励', value: 'checkin' }, { label: '活动补录', value: 'manual_activity' }, { label: '捐献录入', value: 'manual_donation' }, { label: '冲正', value: 'reversal' }]"
-            class="w-36"
-          />
-        </label>
+      <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+        <div class="grid grid-cols-2 gap-2 sm:contents">
+          <label class="text-sm space-y-1">
+            <span class="text-muted">类别</span>
+            <USelect
+              v-model="filters.category"
+              :items="[{ label: '全部', value: 'all' }, { label: '活动积分', value: 'activity' }, { label: '捐献积分', value: 'donation' }]"
+              class="w-full sm:w-32"
+            />
+          </label>
+          <label class="text-sm space-y-1">
+            <span class="text-muted">来源</span>
+            <USelect
+              v-model="filters.source"
+              :items="[{ label: '全部', value: 'all' }, { label: '签到奖励', value: 'checkin' }, { label: '活动补录', value: 'manual_activity' }, { label: '捐献录入', value: 'manual_donation' }, { label: '冲正', value: 'reversal' }]"
+              class="w-full sm:w-36"
+            />
+          </label>
+        </div>
         <UInput
           v-model="filters.keyword"
           placeholder="用户姓名/手机号"
-          class="w-52"
+          class="w-full sm:w-52"
         />
         <UButton
           label="筛选"
           variant="soft"
+          class="w-full sm:w-auto"
           @click="applyFilters"
         />
       </div>
@@ -324,6 +334,7 @@ onMounted(load)
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #createdAt-cell="{ row }">
           {{ formatTime(row.original.createdAt) }}
@@ -369,7 +380,96 @@ onMounted(load)
             {{ row.original.source === 'reversal' ? '冲正记录' : '已冲正' }}
           </span>
         </template>
+
+        <template #empty>
+          <div class="py-10 text-center text-sm text-muted">
+            暂无积分流水
+          </div>
+        </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无积分流水
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 space-y-1.5"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-medium truncate">
+                  {{ row.userName }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ formatTime(row.createdAt) }}
+                </p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <UBadge
+                  :color="row.category === 'activity' ? 'success' : 'warning'"
+                  variant="subtle"
+                  size="sm"
+                >
+                  {{ row.category === 'activity' ? '活动' : '捐献' }}
+                </UBadge>
+                <span
+                  class="font-medium"
+                  :class="row.points < 0 ? 'text-error' : 'text-success'"
+                >
+                  {{ row.points > 0 ? '+' : '' }}{{ row.points }}
+                </span>
+              </div>
+            </div>
+            <p class="text-sm text-muted">
+              来源：{{ SOURCE_LABEL[row.source] }} · {{ targetLabel(row) }}
+            </p>
+            <p
+              v-if="row.note"
+              class="text-sm text-muted break-all"
+            >
+              备注：{{ row.note }}
+            </p>
+            <p
+              v-if="row.operatorName"
+              class="text-xs text-muted"
+            >
+              操作人：{{ row.operatorName }}
+            </p>
+            <UButton
+              v-if="row.source !== 'reversal' && !row.reversalId"
+              label="冲正"
+              color="error"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-undo-2"
+              class="w-full mt-1"
+              @click="openReverse(row)"
+            />
+            <p
+              v-else
+              class="text-xs text-muted pt-1"
+            >
+              {{ row.source === 'reversal' ? '冲正记录' : '已冲正' }}
+            </p>
+          </li>
+        </ul>
+      </div>
       <div class="mt-4 flex justify-end">
         <UPagination
           v-model:page="page"

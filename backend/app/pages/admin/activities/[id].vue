@@ -100,6 +100,12 @@ function statusColor(s: RegistrationRow['status']): string {
   return 'primary'
 }
 
+function checkInMethodLabel(m: RegistrationRow['checkInMethod']): string {
+  if (m === 'manual') return '管理员补签'
+  if (m === 'scan') return '扫码签到'
+  return '—'
+}
+
 async function manualCheckIn(row: RegistrationRow) {
   checkInUserId.value = row.userId
   try {
@@ -206,6 +212,7 @@ onMounted(async () => {
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #userPhone-cell="{ row }">
           {{ row.original.userPhone || '—' }}
@@ -255,6 +262,71 @@ onMounted(async () => {
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无报名记录
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 space-y-1.5"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <p class="font-medium truncate">
+                  {{ row.userName }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ row.userPhone || '未填写手机号' }}
+                </p>
+              </div>
+              <UBadge
+                :color="(statusColor(row.status) as 'primary' | 'success' | 'neutral')"
+                variant="subtle"
+                size="sm"
+                class="shrink-0"
+              >
+                {{ STATUS_LABEL[row.status] }}
+              </UBadge>
+            </div>
+            <p class="text-xs text-muted">
+              报名 {{ formatDateTime(row.createdAt) }}
+            </p>
+            <p
+              v-if="row.checkInAt"
+              class="text-xs text-muted"
+            >
+              签到（{{ checkInMethodLabel(row.checkInMethod) }}）{{ formatDateTime(row.checkInAt) }}
+            </p>
+            <UButton
+              v-if="row.status === 'registered'"
+              color="primary"
+              variant="soft"
+              size="sm"
+              icon="i-lucide-check-check"
+              label="补签"
+              :loading="checkInUserId === row.userId"
+              class="w-full mt-1"
+              @click="manualCheckIn(row)"
+            />
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="total > pageSize"

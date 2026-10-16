@@ -152,6 +152,7 @@ onMounted(load)
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #name-cell="{ row }">
           <div class="flex items-center gap-2">
@@ -207,6 +208,75 @@ onMounted(load)
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无角色数据
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 space-y-2"
+          >
+            <div class="flex items-center gap-2">
+              <UIcon
+                name="i-lucide-shield"
+                class="size-4 text-muted shrink-0"
+              />
+              <span class="font-medium">{{ row.name }}</span>
+              <UBadge
+                v-if="BUILTIN.has(row.name)"
+                color="primary"
+                variant="subtle"
+                size="sm"
+              >
+                内置
+              </UBadge>
+            </div>
+            <p class="text-sm text-muted">
+              {{ row.description || '暂无描述' }}
+            </p>
+            <p class="text-xs text-muted">
+              创建于 {{ formatDateTime(row.createdAt) }}
+            </p>
+            <div class="flex gap-2 pt-1">
+              <UButton
+                color="neutral"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-pencil"
+                label="编辑"
+                class="flex-1"
+                @click="openEdit(row)"
+              />
+              <UButton
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-trash-2"
+                label="删除"
+                :disabled="BUILTIN.has(row.name)"
+                class="flex-1"
+                @click="askDelete(row)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
     </UCard>
 
     <!-- 新建 / 编辑角色 -->

@@ -150,17 +150,17 @@ onMounted(() => {
           共 {{ total }} 个媒体文件
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex w-full items-center gap-2 sm:w-auto">
         <USelect
           v-model="typeFilter"
           :items="typeOptions"
-          class="w-32"
+          class="w-32 shrink-0"
         />
         <UInput
           v-model="searchInput"
           placeholder="搜索 URL / 文件名"
           icon="i-lucide-search"
-          class="w-56 sm:w-64"
+          class="flex-1 sm:flex-none sm:w-64"
           clearable
         />
       </div>
@@ -171,6 +171,7 @@ onMounted(() => {
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #preview-cell="{ row }">
           <div class="flex h-10 items-center">
@@ -258,6 +259,85 @@ onMounted(() => {
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无媒体数据
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.id"
+            class="py-4 flex gap-3"
+          >
+            <div class="shrink-0 pt-0.5">
+              <img
+                v-if="row.type === 'image'"
+                :src="row.url"
+                alt="预览"
+                class="h-12 w-12 rounded object-cover"
+              >
+              <UIcon
+                v-else
+                :name="typeMeta[row.type as MediaType].icon"
+                class="size-8 text-muted"
+              />
+            </div>
+            <div class="min-w-0 flex-1 space-y-1">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium truncate min-w-0">
+                  {{ row.metadata.name || '未命名' }}
+                </p>
+                <UBadge
+                  :color="typeMeta[row.type as MediaType].color as any"
+                  variant="subtle"
+                  size="sm"
+                  class="shrink-0"
+                >
+                  {{ typeMeta[row.type as MediaType].label }}
+                </UBadge>
+              </div>
+              <a
+                :href="row.url"
+                target="_blank"
+                rel="noopener"
+                class="block truncate text-xs text-muted underline-offset-2 hover:underline"
+              >
+                {{ row.url }}
+              </a>
+              <p class="text-xs text-muted">
+                {{ formatFileSize(row.metadata.size) }}<span v-if="dimensionsText(row)"> · {{ dimensionsText(row) }}</span>
+                · 引用 {{ row.refCount }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ formatDateTime(row.createdAt) }}
+              </p>
+              <UButton
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-trash-2"
+                label="删除"
+                class="w-full mt-1"
+                @click="askDelete(row)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
 
       <div
         v-if="total > pageSize"

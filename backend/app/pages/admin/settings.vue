@@ -233,6 +233,7 @@ onMounted(load)
         :data="rows"
         :columns="columns"
         :loading="loading"
+        class="hidden md:block"
       >
         <template #key-cell="{ row }">
           <span class="font-mono text-sm font-medium">{{ row.original.key }}</span>
@@ -274,6 +275,62 @@ onMounted(load)
           </div>
         </template>
       </UTable>
+
+      <!-- 移动端卡片列表 -->
+      <div class="md:hidden">
+        <div
+          v-if="loading && !rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          加载中…
+        </div>
+        <div
+          v-else-if="!rows.length"
+          class="py-10 text-center text-sm text-muted"
+        >
+          暂无设置数据
+        </div>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="row in rows"
+            :key="row.key"
+            class="py-4 space-y-2"
+          >
+            <p class="font-mono text-sm font-medium break-all">
+              {{ row.key }}
+            </p>
+            <p
+              class="font-mono text-xs text-muted break-all"
+              :title="JSON.stringify(row.value)"
+            >
+              {{ previewValue(row.value) }}
+            </p>
+            <div class="flex gap-2 pt-1">
+              <UButton
+                color="neutral"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-pencil"
+                label="编辑"
+                class="flex-1"
+                @click="openEdit(row)"
+              />
+              <UButton
+                color="error"
+                variant="soft"
+                size="sm"
+                icon="i-lucide-trash-2"
+                label="删除"
+                class="flex-1"
+                @click="askDelete(row)"
+              />
+            </div>
+          </li>
+        </ul>
+      </div>
     </UCard>
 
     <!-- 新建 / 编辑设置 -->
