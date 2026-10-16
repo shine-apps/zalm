@@ -3,6 +3,7 @@ import { getMyPoints } from '@/api/points'
 import type { PointsOverview } from '@/api/points'
 import { resolveMediaUrl } from '@/api/profile'
 import { useAuthStore } from '@/store/auth'
+import { useNotificationStore } from '@/store/notification'
 import {
   THEME_BRAND_OPTIONS,
   THEME_MODE_OPTIONS,
@@ -30,13 +31,14 @@ interface MeMenuItem {
   url?: string
   /** tabbar 页必须用 switchTab 跳转 */
   tabbar?: boolean
-  /** 红点预留：接入消息接口后按未读数开启 */
+  /** 未读红点（消息通知按真实未读数开启） */
   dot?: boolean
   /** 自定义点击行为（如主题切换弹层），优先于 url 跳转与登录校验 */
   action?: () => void
 }
 
 const auth = useAuthStore()
+const notifStore = useNotificationStore()
 const themeStore = useThemeStore()
 const loggingOut = ref(false)
 
@@ -55,6 +57,9 @@ async function loadPoints() {
 
 onShow(() => {
   void loadPoints()
+  // 从消息中心返回等场景刷新红点（页面级 onShow，App 切前台另有 App.vue 刷新）
+  if (auth.isLoggedIn)
+    void notifStore.fetchUnreadCount()
 })
 
 function goPointsLedger() {
@@ -98,7 +103,7 @@ const menuGroups = computed<MeMenuItem[][]>(() => [
     { key: 'points-rank', label: '积分排行', icon: 'i-carbon-trophy', url: '/pages/points/index' },
     { key: 'points-ledger', label: '我的积分明细', icon: 'i-carbon-receipt', url: '/pages/points/ledger' },
     { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
-    { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', dot: false },
+    { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', url: '/pages/notification/index', dot: notifStore.hasUnread },
   ],
   [
     { key: 'security', label: '账号与安全', icon: 'i-carbon-security' },

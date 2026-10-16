@@ -7,6 +7,7 @@ import {
   getRegistration,
   insertActivity,
   insertRegistration,
+  listActiveRegistrationUserIds,
   listActivities,
   listMyRegistrations,
   listRegistrationsWithUsers,
@@ -33,6 +34,14 @@ import { adjustRefCount, getMediaFileById } from '../database/repositories/media
 import { getCurrentCheckinCode, verifyCheckinCode } from './checkin-code'
 import { awardCheckinPoints } from './points-service'
 import { toActivityMediaView, type ActivityMediaItemView } from './activity-media'
+import { notifyUsers } from './notifications-service'
+import {
+  buildCancelledNotifications,
+  buildCheckedInNotifications,
+  buildRegisteredNotifications,
+  buildUpdatedNotifications,
+  diffActivityChanges
+} from './notification-content'
 
 /** 签到开放提前量：活动开始前 15 分钟。 */
 const CHECKIN_LEAD_MS = 15 * 60_000
@@ -177,6 +186,9 @@ export async function editActivity(id: string, patch: ActivityUpdateBody) {
     }
   }
 
+  // 仅标题/时间/地点等关键信息的实际变化通知报名者（提交前比对，patchActivity 后值相同）
+  const changedFields = diffActivityChanges(existing, patch)
+
   const updated = await patchActivity(id, {
     ...(patch.title !== undefined && { title: patch.title }),
     ...(patch.description !== undefined && { description: patch.description }),
@@ -190,6 +202,11 @@ export async function editActivity(id: string, patch: ActivityUpdateBody) {
     ...(patch.points !== undefined && { points: patch.points })
   })
   if (!updated) throw createApiError('NOT_FOUND', { message: '活动不存在' })
+
+  if (changedFields.length > 0) {
+    const recipientIds = await listActiveRegistrationUserIds(id)
+    await notifyUsers(buildUpdatedNotifications(updated, recipientIds, changedFields))
+  }
   return updated
 }
 
@@ -199,6 +216,9 @@ export async function cancelActivity(id: string) {
     throw createApiError('CONFLICT', { message: '活动已取消' })
   }
   const updated = await setActivityStatus(id, 'cancelled')
+  // 组织者端与 admin 端共用本函数：取消后通知全部有效报名者
+  const recipientIds = await listActiveRegistrationUserIds(id)
+  await notifyUsers(buildCancelledNotifications(updated!, recipientIds))
   return updated!
 }
 
@@ -229,8 +249,11 @@ export async function getRegistrationListView(id: string, page: number, pageSize
 // ===== 参与者操作 =====
 
 export async function registerToActivity(activityId: string, userId: string, now: Date = new Date()) {
+  // created=新报名 / revived=取消后复活，二者在事务提交后给本人发通知；existing=幂等重放不发
+  let outcome: 'created' | 'revived' | 'existing' = 'existing'
+  let activityForNotify: ActivityRow | null = null
   // 必须把 tx 传给所有 repo 查询：全局 db 走池化连接，不参与本事务（见 DbExecutor 注释）
-  return db.transaction(async (tx) => {
+  const registration = await db.transaction(async (tx) => {
     // 先锁活动行，串行化同一活动的容量校验，否则并发 count-then-insert 会超卖
     await lockActivity(activityId, tx)
     const activity = await getActivityById(activityId, tx)
@@ -241,6 +264,7 @@ export async function registerToActivity(activityId: string, userId: string, now
     if (now > effectiveDeadline(activity)) {
       throw createApiError('CONFLICT', { message: '报名已截止' })
     }
+    activityForNotify = activity
 
     const reg = await getRegistration(activityId, userId, tx)
     if (reg) {
@@ -252,6 +276,7 @@ export async function registerToActivity(activityId: string, userId: string, now
             throw createApiError('CONFLICT', { message: '名额已满' })
           }
         }
+        outcome = 'revived'
         return (await reviveRegistration(reg.id, tx))!
       }
       return reg // registered / checked_in 幂等
@@ -263,8 +288,14 @@ export async function registerToActivity(activityId: string, userId: string, now
         throw createApiError('CONFLICT', { message: '名额已满' })
       }
     }
+    outcome = 'created'
     return insertRegistration(activityId, userId, tx)
   })
+
+  if (outcome !== 'existing' && activityForNotify) {
+    await notifyUsers(buildRegisteredNotifications(activityForNotify, [userId]))
+  }
+  return registration
 }
 
 export async function cancelMyRegistration(
@@ -316,21 +347,31 @@ export async function checkInToActivity(
   }
 
   // 签到落盘 + 积分发放同事务；条件更新保证只有首次签到发分
-  return db.transaction(async (tx) => {
+  let firstCheckIn = false
+  const result = await db.transaction(async (tx) => {
     const updated = await setRegistrationCheckedInIfFirst(
       reg.id,
       { checkInAt: now, method: 'scan', checkedInBy: null },
       tx
     )
-    if (!updated) return reg // 并发下已被另一请求签到：幂等，不发分
+    if (!updated) return reg // 并发下已被另一请求签到：幂等，不发分也不发通知
     await awardCheckinPoints(tx, {
       registrationId: updated.id,
       userId: updated.userId,
       activityId,
       points: activity.points
     })
+    firstCheckIn = true
     return updated
   })
+
+  // 事务提交后再通知（投递失败不影响签到结果）
+  if (firstCheckIn) {
+    await notifyUsers(
+      buildCheckedInNotifications(activity, [result.userId], { method: 'scan', points: activity.points })
+    )
+  }
+  return result
 }
 
 export async function manualCheckIn(
@@ -340,27 +381,39 @@ export async function manualCheckIn(
   now: Date = new Date()
 ) {
   const activity = await requireActivity(activityId)
+  if (activity.status === 'cancelled') {
+    throw createApiError('CONFLICT', { message: '活动已取消' })
+  }
   const reg = await getRegistration(activityId, targetUserId)
   if (!reg) throw createApiError('CONFLICT', { message: '该用户未报名此活动' })
   if (reg.status === 'checked_in') return reg // 幂等快速返回
   if (reg.status === 'cancelled') {
     throw createApiError('CONFLICT', { message: '该用户已取消报名' })
   }
-  return db.transaction(async (tx) => {
+  let firstCheckIn = false
+  const result = await db.transaction(async (tx) => {
     const updated = await setRegistrationCheckedInIfFirst(
       reg.id,
       { checkInAt: now, method: 'manual', checkedInBy: operatorId },
       tx
     )
-    if (!updated) return reg
+    if (!updated) return reg // 并发下已签到：幂等，不发分也不发通知
     await awardCheckinPoints(tx, {
       registrationId: updated.id,
       userId: updated.userId,
       activityId,
       points: activity.points
     })
+    firstCheckIn = true
     return updated
   })
+
+  if (firstCheckIn) {
+    await notifyUsers(
+      buildCheckedInNotifications(activity, [result.userId], { method: 'manual', points: activity.points })
+    )
+  }
+  return result
 }
 
 export async function listMineView(userId: string, page: number, pageSize: number) {

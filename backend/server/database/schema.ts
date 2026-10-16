@@ -307,5 +307,56 @@ export const shareEvent = pgTable(
   ]
 )
 
+// ===== 站内通知 =====
+
+/**
+ * 通知事件码：`域.事件` 点分命名。
+ * 本期仅活动域 4 类；新增域时在此登记（不入 DB 枚举约束，值域由 TS + 入口校验守住）。
+ */
+export const NOTIFICATION_TYPES = [
+  'activity.registered',
+  'activity.checked_in',
+  'activity.cancelled',
+  'activity.updated'
+] as const
+export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
+
+/** 通知跳转对象类型；本期仅活动。 */
+export const NOTIFICATION_TARGET_TYPES = ['activity'] as const
+export type NotificationTargetType = (typeof NOTIFICATION_TARGET_TYPES)[number]
+
+/**
+ * 站内通知（通用，不绑死具体业务）：
+ * - title/body 在生成时快照，业务对象之后改名不影响历史消息；
+ * - target_type/target_id 提供跳转，data jsonb 存附加结构化数据（禁放敏感信息）；
+ * - read_at 为 null 即未读。
+ */
+export const notification = pgTable(
+  'notification',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text('type').$type<NotificationType>().notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull().default(''),
+    targetType: text('target_type').$type<NotificationTargetType>(),
+    targetId: text('target_id'),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  t => [
+    index('notification_user_created_idx').on(t.userId, desc(t.createdAt)),
+    // 未读数高频查询：部分索引只挂未读行
+    index('notification_user_unread_idx')
+      .on(t.userId)
+      .where(sql`${t.readAt} IS NULL`)
+  ]
+)
+
 // Better Auth 四张表
 export { account, session, user, verification } from './auth-schema'

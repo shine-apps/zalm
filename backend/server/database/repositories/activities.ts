@@ -344,6 +344,26 @@ export async function getActivityStatsMap(activityIds: string[]): Promise<Map<st
   return map
 }
 
+/**
+ * 某活动全部有效报名用户 id（registered + checked_in，不含已取消）。
+ * 用于活动取消/变更时的通知收件人。
+ */
+export async function listActiveRegistrationUserIds(
+  activityId: string,
+  exec: DbExecutor = db
+): Promise<string[]> {
+  const rows = await exec
+    .select({ userId: registrationTable.userId })
+    .from(registrationTable)
+    .where(
+      and(
+        eq(registrationTable.activityId, activityId),
+        inArray(registrationTable.status, ['registered', 'checked_in'])
+      )
+    )
+  return rows.map(r => r.userId)
+}
+
 /** 报名/签到名单（含用户展示字段，仅组织者/管理员接口调用）。 */
 export async function listRegistrationsWithUsers(
   activityId: string,

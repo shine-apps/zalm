@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatDate,
   formatDateTime,
+  formatRelativeTime,
   formatTimeRange,
   secondsUntilNextMinute,
 } from './datetime'
@@ -34,5 +35,35 @@ describe('datetime formatting', () => {
     expect(secondsUntilNextMinute(0)).toBe(60)
     expect(secondsUntilNextMinute(30_000)).toBe(30)
     expect(secondsUntilNextMinute(59_000)).toBe(1)
+  })
+
+  describe('formatRelativeTime（消息列表相对时间，now 显式传入保证确定性）', () => {
+    const now = new Date('2026-10-16T10:00:00.000Z')
+
+    it('1 分钟内 => 刚刚（含未来时间兜底）', () => {
+      expect(formatRelativeTime('2026-10-16T09:59:30.000Z', now)).toBe('刚刚')
+      expect(formatRelativeTime('2026-10-16T10:01:00.000Z', now)).toBe('刚刚')
+    })
+
+    it('1 分钟~1 小时 => N 分钟前', () => {
+      expect(formatRelativeTime('2026-10-16T09:55:00.000Z', now)).toBe('5分钟前')
+    })
+
+    it('1~24 小时 => N 小时前', () => {
+      expect(formatRelativeTime('2026-10-16T08:00:00.000Z', now)).toBe('2小时前')
+    })
+
+    it('1~7 天 => N 天前', () => {
+      expect(formatRelativeTime('2026-10-13T10:00:00.000Z', now)).toBe('3天前')
+    })
+
+    it('7 天及更早 => 回退到 YYYY-MM-DD', () => {
+      expect(formatRelativeTime('2026-10-01T09:00:00.000Z', now)).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    })
+
+    it('空值/非法输入 => 空串', () => {
+      expect(formatRelativeTime(null, now)).toBe('')
+      expect(formatRelativeTime('bad', now)).toBe('')
+    })
   })
 })

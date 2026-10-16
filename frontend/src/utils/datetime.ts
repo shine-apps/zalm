@@ -49,6 +49,33 @@ export function formatTimeRange(
   return `${formatDateTime(s)} ~ ${formatDateTime(e)}`
 }
 
+/**
+ * 相对时间（消息通知列表用）：<1 分钟「刚刚」，<1 小时「N分钟前」，
+ * <24 小时「N小时前」，<7 天「N天前」，更早回退 YYYY-MM-DD。
+ * now 可显式传入（测试确定性）；无效输入返回 ''。
+ */
+export function formatRelativeTime(
+  input?: string | number | Date | null,
+  now: Date = new Date(),
+): string {
+  const d = toDate(input)
+  if (!d)
+    return ''
+  const diffMs = now.getTime() - d.getTime()
+  if (diffMs < 60_000)
+    return '刚刚'
+  const minutes = Math.floor(diffMs / 60_000)
+  if (minutes < 60)
+    return `${minutes}分钟前`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24)
+    return `${hours}小时前`
+  const days = Math.floor(hours / 24)
+  if (days < 7)
+    return `${days}天前`
+  return formatDate(d)
+}
+
 /** 距离下一整分的秒数（1..60），用于滚动码倒计时。 */
 export function secondsUntilNextMinute(nowMs: number = Date.now()): number {
   return 60 - (Math.floor(nowMs / 1000) % 60)

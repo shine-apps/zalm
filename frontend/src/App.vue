@@ -5,6 +5,7 @@ import { navigateToInterceptor } from '@/router/interceptor'
 import { tabbarStore } from '@/tabbar/store'
 import { permission } from '@/router/permission'
 import { useAuthStore } from '@/store/auth'
+import { useNotificationStore } from '@/store/notification'
 import { useSettingsStore } from '@/store/settings'
 import { useThemeStore } from '@/store/theme'
 
@@ -18,8 +19,11 @@ onLaunch((options) => {
   // 恢复持久化的主题选择并监听系统深浅色变化（H5 同步 class 到 documentElement）
   useThemeStore().init()
   // 启动时用已有会话 Cookie 静默恢复登录态；未登录则安静停留在公开首页，
-  // 进入受保护页或后续请求 401 时再引导登录。
-  useAuthStore().fetchMe(true).catch(() => {})
+  // 进入受保护页或后续请求 401 时再引导登录。登录态恢复成功后拉未读消息数驱动红点。
+  useAuthStore()
+    .fetchMe(true)
+    .then(() => useNotificationStore().fetchUnreadCount())
+    .catch(() => {})
   // 启动必须加载全量设置（公开端点，无需登录）；失败静默，不阻断启动
   useSettingsStore().fetchSettings().catch(() => {})
 })
@@ -33,6 +37,9 @@ onShow((options) => {
   else {
     navigateToInterceptor.invoke({ url: '/' })
   }
+  // 切回前台时刷新未读消息数（页面刷新式通知，不做轮询）
+  if (useAuthStore().isLoggedIn)
+    void useNotificationStore().fetchUnreadCount()
 })
 onHide(() => {
   console.log('App Hide')
