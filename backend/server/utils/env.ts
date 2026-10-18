@@ -26,6 +26,13 @@ const envSchema = z.object({
   WECHAT_OA_SECRET: z.string().optional(),
   // 开发联调用：仅字符串 'true' 视为开启（不能用 z.coerce.boolean——它会把 'false' 也转成 true）
   WECHAT_MOCK: z.string().default('false').transform(v => v === 'true'),
+  // 阿里云短信（OTP 真实发送）：四项配齐才走阿里云，否则回退为日志打印（仅开发模式）
+  ALIYUN_ACCESS_KEY_ID: z.string().optional(),
+  ALIYUN_ACCESS_KEY_SECRET: z.string().optional(),
+  // 审核通过的短信签名名称
+  ALIYUN_SMS_SIGN_NAME: z.string().optional(),
+  // 验证码模板 CODE，模板变量必须命名为 code（如 SMS_249705112）
+  ALIYUN_SMS_TEMPLATE_CODE: z.string().optional(),
   // 腾讯云 COS（不配置不影响应用启动，仅调用媒体接口时报“对象存储未配置”）
   TENCENT_COS_SECRET_ID: z.string().optional(),
   TENCENT_COS_SECRET_KEY: z.string().optional(),

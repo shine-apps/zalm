@@ -6,10 +6,13 @@ import * as schema from '../database/schema'
 import { ensureUserRoleByName, getRoleNamesByUserId } from '../database/repositories/roles'
 import { getEnv, getTrustedOrigins } from './env'
 import { logger } from './logger'
-import { isValidPhoneNumber, logSmsSender } from './sms'
+import { isValidPhoneNumber, resolveSmsSender } from './sms'
 import { wechatPhone } from './auth-wechat'
 
 const env = getEnv()
+
+/** 验证码发送通道：阿里云配置齐全走真实发送，否则回退日志（详见 sms.resolveSmsSender）。 */
+const smsSender = resolveSmsSender()
 
 /** 角色 name 常量：授权判据统一用 name，不使用独立 key 字段。 */
 export const ADMIN_ROLE = 'admin'
@@ -22,7 +25,8 @@ export const ACTIVITY_ORGANIZER_ROLES = [ADMIN_ROLE, ACTIVITY_ADMIN_ROLE]
 /**
  * Better Auth 实例（Cookie 单通道）。
  * - 邮箱密码（minPasswordLength=8）
- * - phoneNumber 插件：OTP 存入自带 verification 表；当前环境未接入短信，sendOTP 仅打印
+ * - phoneNumber 插件：OTP 存入自带 verification 表；sendOTP 由 resolveSmsSender() 决定
+ *   （阿里云配置齐全真实发送，否则日志打印）
  * - 自助注册成功后默认挂 user 角色；管理员建用户走仓储直接入库（不触发此 hook）
  */
 export const auth = betterAuth({
@@ -60,8 +64,8 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: 300,
       phoneNumberValidator: isValidPhoneNumber,
-      // 开发期验证码仅写日志；接服务商时替换 logSmsSender 即可
-      sendOTP: logSmsSender,
+      // 阿里云四项凭证配置齐全时真实发送，否则自动回退为日志打印
+      sendOTP: smsSender,
       // 验证码校验通过但用户不存在：自动建号（手机号即已验证），
       // 由下方 databaseHooks.user.create.after 自动挂默认 user 角色
       signUpOnVerification: {
