@@ -70,8 +70,38 @@ function ensureLogin(): boolean {
   return false
 }
 
+/** 昵称缺失/为手机号格式（OTP 自动注册场景）时需先完善资料。 */
+const needsProfileFix = computed(() => {
+  const user = auth.user
+  if (!user)
+    return false
+  const name = (user.name || '').trim()
+  if (!name)
+    return true
+  if (name === user.phoneNumber)
+    return true
+  if (/^1\d{10}$/.test(name))
+    return true
+  return false
+})
+
+const profilePopupVisible = ref(false)
+
 function doRegister() {
   if (!ensureLogin() || !detail.value)
+    return
+
+  // 资料不完善时先弹资料完善窗，保存成功后再继续报名
+  if (needsProfileFix.value) {
+    profilePopupVisible.value = true
+    return
+  }
+
+  confirmRegister()
+}
+
+function confirmRegister() {
+  if (!detail.value)
     return
   const a = detail.value
   uni.showModal({
@@ -84,6 +114,11 @@ function doRegister() {
       void submitRegister()
     },
   })
+}
+
+function onProfileConfirmed() {
+  // 资料保存成功后继续报名
+  confirmRegister()
 }
 
 async function submitRegister() {
@@ -579,6 +614,14 @@ onUnload(() => {
       v-model:show="shareShow"
       :payload="sharePayload"
       :panel-id="sharePanelId"
+    />
+
+    <!-- 资料完善弹窗：报名时昵称缺失/为手机号格式自动弹出 -->
+    <profile-edit-popup
+      v-model:visible="profilePopupVisible"
+      title="完善资料"
+      hint="报名活动前请先设置您的头像和昵称"
+      @confirmed="onProfileConfirmed"
     />
 
     <!-- 视频播放弹层 -->
