@@ -1,32 +1,16 @@
 /**
- * 图片裁剪页（/pages/tools/img-cropper）的跨页通信与裁剪产物读取。
+ * 图片裁剪的产物读取工具（配合 img-cropper-popup 组件使用）。
  *
- * 调用方选图拿到本地 URI（H5 为 blob: URL，小程序为临时文件路径）后调用 cropImage，
- * 用户在裁剪页确认后 resolve 裁剪结果，取消或跳转失败 resolve null。
- *
- * 使用模块级变量 pendingCrop / pendingResolver 在调用方和裁剪页之间传递数据，
- * 避免 uni.navigateTo eventChannel 在 H5 环境下因路由时序问题导致事件丢失
- * （emit 写入旧 meta.eventChannel 实例的缓存，on 监听新实例，两端完全断开）。
+ * 裁剪交互由 <img-cropper-popup> 组件在页内完成（confirm 时返回 CropResult），
+ * 本模块只负责把裁剪产物（canvas 导出的临时 URI）读取为可上传的数据源。
  */
 
-/** 裁剪页路由（vite-plugin-uni-pages 按文件路径自动注册）。 */
-export const CROP_PAGE_URL = '/pages/tools/img-cropper'
-
-/** wd-img-cropper confirm 事件载荷（width/height 为导出像素尺寸）。 */
+/** img-cropper-popup confirm 事件载荷（width/height 为导出像素尺寸）。 */
 export interface CropResult {
   tempFilePath: string
   width: number
   height: number
 }
-
-/** 发给裁剪页的初始载荷。 */
-export interface CropStartPayload {
-  src: string
-  aspectRatio: string
-}
-
-/** 裁剪页 resolve 回调类型。 */
-export type CropResolver = (result: CropResult | null) => void
 
 /** 裁剪产物读取后的可上传数据：H5 为 File，小程序为临时路径 + 体积。 */
 export interface CroppedImageData {
@@ -38,7 +22,7 @@ export interface CroppedImageData {
   name: string
   /** 文件大小（字节） */
   size: number
-  /** MIME 类型（裁剪页固定输出 jpg） */
+  /** MIME 类型（裁剪组件固定输出 jpg） */
   contentType: string
   /** 图片宽（px） */
   width: number
@@ -46,113 +30,11 @@ export interface CroppedImageData {
   height: number
 }
 
-/** 与裁剪页 wd-img-cropper 的 file-type 保持一致。 */
+/** 与 img-cropper-popup 的 file-type 保持一致。 */
 const CROP_CONTENT_TYPE = 'image/jpeg'
 
-/** 合法图片源的协议前缀，用于判断 query 值是否仍处于编码态。 */
-const SRC_SCHEME_RE = /^(?:blob:|data:|https?:\/\/|wxfile:\/\/|file:\/\/|tmp|\/)/
-
 /**
- * 构造裁剪页 URL：src/aspectRatio 同时编入 query，
- * 作为模块级变量之外的兜底传参通道。
- */
-export function buildCropPageUrl(src: string, aspectRatio: string): string {
-  return `${CROP_PAGE_URL}?src=${encodeURIComponent(src)}&aspectRatio=${encodeURIComponent(aspectRatio)}`
-}
-
-function normalizeSrcParam(raw: string): string {
-  // 不同平台的 onLoad query 值可能是编码态也可能已解码，
-  // 用协议前缀识别：能直接识别就不再解码，避免二次解码破坏合法值
-  if (SRC_SCHEME_RE.test(raw))
-    return raw
-  try {
-    const decoded = decodeURIComponent(raw)
-    return SRC_SCHEME_RE.test(decoded) ? decoded : raw
-  }
-  catch {
-    return raw
-  }
-}
-
-/**
- * 从裁剪页 URL query 还原载荷（模块级变量未命中时的兜底）。
- */
-export function parseCropQuery(query: Record<string, unknown> | undefined | null): CropStartPayload | null {
-  const rawSrc = query?.src
-  if (typeof rawSrc !== 'string' || !rawSrc)
-    return null
-  let aspect = typeof query?.aspectRatio === 'string' ? query.aspectRatio : ''
-  if (aspect.includes('%')) {
-    try {
-      aspect = decodeURIComponent(aspect)
-    }
-    catch {
-      // 保留原值
-    }
-  }
-  return { src: normalizeSrcParam(rawSrc), aspectRatio: aspect || '1:1' }
-}
-
-// —— 模块级跨页通信容器 ——
-
-/** 调用方写入 → 裁剪页 onLoad 读取。 */
-let pendingCrop: CropStartPayload | null = null
-
-/** 裁剪完成 → 调用方 Promise resolve。 */
-let pendingResolver: CropResolver | null = null
-
-/**
- * 裁剪页读取待处理的裁剪参数。
- * 返回后模块内缓存清空，防止二次消费。
- */
-export function consumePendingCrop(): CropStartPayload | null {
-  const payload = pendingCrop
-  pendingCrop = null
-  return payload
-}
-
-/**
- * 裁剪页回传结果并清理 resolver。
- * confirm 时传裁剪产物，cancel/onUnload 时传 null。
- */
-export function settleCrop(result: CropResult | null): void {
-  const resolver = pendingResolver
-  pendingResolver = null
-  if (resolver)
-    resolver(result)
-}
-
-/**
- * 打开裁剪页并等待裁剪结果。
- * @returns 裁剪确认返回 CropResult；用户取消或跳转失败返回 null
- */
-export function cropImage(src: string, aspectRatio: string): Promise<CropResult | null> {
-  return new Promise((resolve) => {
-    // 防重入：如果上一次 cropImage 还没结算（如用户快速双击上传），
-    // 先以 null 结算旧 Promise，避免悬挂
-    if (pendingResolver) {
-      pendingResolver(null)
-      pendingResolver = null
-    }
-    // 写入模块级变量，裁剪页 onLoad 后读取；
-    // URL query 同步携带参数，模块变量未命中时（如分包多实例）由 query 兜底
-    pendingCrop = { src, aspectRatio }
-    pendingResolver = resolve
-
-    uni.navigateTo({
-      url: buildCropPageUrl(src, aspectRatio),
-      fail: () => {
-        // 跳转失败，清理缓存并 resolve null
-        pendingCrop = null
-        pendingResolver = null
-        resolve(null)
-      },
-    })
-  })
-}
-
-/**
- * 将裁剪页产物读取为可上传数据源：
+ * 将裁剪产物读取为可上传数据源：
  * - H5：canvas 临时 URI（blob:/data: 均可能）→ fetch → Blob → File；
  * - 微信小程序：保留临时路径，通过 getFileInfo 获取体积。
  * 读取失败抛错，由调用方提示并中止上传。
@@ -167,7 +49,9 @@ export async function readCroppedImage(result: CropResult): Promise<CroppedImage
   data = await readCroppedImageH5(result.tempFilePath, name, width, height)
   // #endif
   // #ifdef MP-WEIXIN
-  data = await readCroppedImageMp(result.tempFilePath, name, width, height)
+  // !data 守卫：真实构建中两个平台块互斥，恒为 true；仅测试环境（无条件编译）需要
+  if (!data)
+    data = await readCroppedImageMp(result.tempFilePath, name, width, height)
   // #endif
   if (!data)
     throw new Error('当前平台暂不支持图片裁剪上传')

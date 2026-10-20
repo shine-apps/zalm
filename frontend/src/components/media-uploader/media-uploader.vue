@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import type { MediaItem } from '@/api/media'
-import { cropImage, readCroppedImage } from '@/utils/img-crop'
+import type { CropResult } from '@/utils/img-crop'
+import { readCroppedImage } from '@/utils/img-crop'
 import { uploadMedia } from '@/utils/upload-media'
+
+/** img-cropper-popup 组件实例（easycom 运行时解析，需手动声明 expose 契约）。 */
+interface ImgCropperPopupInstance {
+  open: (src: string, aspectRatio: string) => Promise<CropResult | null>
+}
 
 /** 支持的上传形态：纯图片、纯视频、图片视频混合。 */
 type UploaderType = 'image' | 'video' | 'mixed'
@@ -101,6 +107,9 @@ watch(items, (v) => {
 }, { deep: true })
 
 const canAdd = computed(() => !props.disabled && items.value.length < effectiveMaxCount.value)
+
+/** 页内裁剪弹窗实例。 */
+const cropperRef = ref<ImgCropperPopupInstance | null>(null)
 
 // 上传源（重试用，非响应式）
 const pendingSources = new Map<string, PendingSource>()
@@ -225,9 +234,9 @@ function shouldCrop(kind: FileKind): boolean {
 }
 
 /**
- * 跳裁剪页对图片按 props.cropAspect 裁剪，并把产物转回可上传的 PendingSource。
+ * 打开页内裁剪弹窗按 props.cropAspect 裁剪，并把产物转回可上传的 PendingSource。
  * 用户取消返回 null（静默）；裁剪/读取失败 toast 后返回 null。
- * H5 传给裁剪页的 blob: 预览 URL 在结算后立即回收。
+ * H5 传给裁剪弹窗的 blob: 预览 URL 在结算后立即回收。
  */
 async function cropPendingSource(source: PendingSource): Promise<PendingSource | null> {
   let previewUrl = ''
@@ -240,7 +249,7 @@ async function cropPendingSource(source: PendingSource): Promise<PendingSource |
   if (!previewUrl)
     return null
   try {
-    const result = await cropImage(previewUrl, props.cropAspect!)
+    const result = await cropperRef.value?.open(previewUrl, props.cropAspect!)
     if (!result)
       return null
     const cropped = await readCroppedImage(result)
@@ -461,5 +470,8 @@ defineExpose({
         </view>
       </view>
     </view>
+
+    <!-- 页内裁剪弹窗（替代原裁剪页，不再发生页面跳转） -->
+    <img-cropper-popup ref="cropperRef" />
   </view>
 </template>
