@@ -327,7 +327,7 @@ function goBack() {
     <!-- 登录方式切换 -->
     <view v-if="useOtherLogin" class="mb-8 rounded-4 bg-card shadow-sm">
       <view class="flex p-4">
-         <view
+        <view
           class="h-9 flex flex-1 items-center justify-center rounded-1.5 text-4"
           :class="tab === 'phone' ? 'bg-primary text-white' : 'text-muted'"
           @click="tab = 'phone'"

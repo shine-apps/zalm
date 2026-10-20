@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildCropPageUrl,
   consumePendingCrop,
   CROP_PAGE_URL,
   cropImage,
+  parseCropQuery,
   settleCrop,
 } from './img-crop'
 import type { CropResult } from './img-crop'
@@ -33,7 +35,9 @@ describe('cropImage', () => {
     cropImage('blob:mock-image', '16:9')
 
     const options = nav.getOptions()
-    expect(options.url).toBe(CROP_PAGE_URL)
+    // URL query 同步携带参数作为兜底通道
+    expect(options.url).toBe(buildCropPageUrl('blob:mock-image', '16:9'))
+    expect(options.url.startsWith(`${CROP_PAGE_URL}?`)).toBe(true)
     // 新实现不再依赖 events 参数
     expect(options.events).toBeUndefined()
 
@@ -93,5 +97,47 @@ describe('cropImage', () => {
 
     expect(consumePendingCrop()).not.toBeNull()
     expect(consumePendingCrop()).toBeNull()
+  })
+})
+
+describe('parseCropQuery', () => {
+  /** 从 buildCropPageUrl 的产物中提取 query 对象（模拟各平台 onLoad 传入）。 */
+  function queryOf(url: string): Record<string, string> {
+    return Object.fromEntries(new URLSearchParams(url.slice(url.indexOf('?') + 1)))
+  }
+
+  it('还原 buildCropPageUrl 编码的参数（已解码形态）', () => {
+    const query = queryOf(buildCropPageUrl('blob:http://localhost/abc-123', '16:9'))
+    expect(parseCropQuery(query)).toEqual({
+      src: 'blob:http://localhost/abc-123',
+      aspectRatio: '16:9',
+    })
+  })
+
+  it('query 值仍处于编码态时按需解码', () => {
+    expect(parseCropQuery({
+      src: 'blob%3Ahttp%3A%2F%2Flocalhost%2Fabc-123',
+      aspectRatio: '16%3A9',
+    })).toEqual({
+      src: 'blob:http://localhost/abc-123',
+      aspectRatio: '16:9',
+    })
+  })
+
+  it('已解码且含 % 的合法 src 不会被二次解码', () => {
+    expect(parseCropQuery({
+      src: 'blob:http://localhost/with%20space.png',
+      aspectRatio: '1:1',
+    })).toEqual({
+      src: 'blob:http://localhost/with%20space.png',
+      aspectRatio: '1:1',
+    })
+  })
+
+  it('缺省或非法参数返回 null / 默认比例', () => {
+    expect(parseCropQuery(undefined)).toBeNull()
+    expect(parseCropQuery({})).toBeNull()
+    expect(parseCropQuery({ src: 'blob:x' })?.aspectRatio).toBe('1:1')
+    expect(parseCropQuery({ src: 123 })).toBeNull()
   })
 })

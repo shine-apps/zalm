@@ -49,6 +49,50 @@ export interface CroppedImageData {
 /** 与裁剪页 wd-img-cropper 的 file-type 保持一致。 */
 const CROP_CONTENT_TYPE = 'image/jpeg'
 
+/** 合法图片源的协议前缀，用于判断 query 值是否仍处于编码态。 */
+const SRC_SCHEME_RE = /^(?:blob:|data:|https?:\/\/|wxfile:\/\/|file:\/\/|tmp|\/)/
+
+/**
+ * 构造裁剪页 URL：src/aspectRatio 同时编入 query，
+ * 作为模块级变量之外的兜底传参通道。
+ */
+export function buildCropPageUrl(src: string, aspectRatio: string): string {
+  return `${CROP_PAGE_URL}?src=${encodeURIComponent(src)}&aspectRatio=${encodeURIComponent(aspectRatio)}`
+}
+
+function normalizeSrcParam(raw: string): string {
+  // 不同平台的 onLoad query 值可能是编码态也可能已解码，
+  // 用协议前缀识别：能直接识别就不再解码，避免二次解码破坏合法值
+  if (SRC_SCHEME_RE.test(raw))
+    return raw
+  try {
+    const decoded = decodeURIComponent(raw)
+    return SRC_SCHEME_RE.test(decoded) ? decoded : raw
+  }
+  catch {
+    return raw
+  }
+}
+
+/**
+ * 从裁剪页 URL query 还原载荷（模块级变量未命中时的兜底）。
+ */
+export function parseCropQuery(query: Record<string, unknown> | undefined | null): CropStartPayload | null {
+  const rawSrc = query?.src
+  if (typeof rawSrc !== 'string' || !rawSrc)
+    return null
+  let aspect = typeof query?.aspectRatio === 'string' ? query.aspectRatio : ''
+  if (aspect.includes('%')) {
+    try {
+      aspect = decodeURIComponent(aspect)
+    }
+    catch {
+      // 保留原值
+    }
+  }
+  return { src: normalizeSrcParam(rawSrc), aspectRatio: aspect || '1:1' }
+}
+
 // —— 模块级跨页通信容器 ——
 
 /** 调用方写入 → 裁剪页 onLoad 读取。 */
@@ -90,12 +134,13 @@ export function cropImage(src: string, aspectRatio: string): Promise<CropResult 
       pendingResolver(null)
       pendingResolver = null
     }
-    // 写入模块级变量，裁剪页 onLoad 后读取
+    // 写入模块级变量，裁剪页 onLoad 后读取；
+    // URL query 同步携带参数，模块变量未命中时（如分包多实例）由 query 兜底
     pendingCrop = { src, aspectRatio }
     pendingResolver = resolve
 
     uni.navigateTo({
-      url: CROP_PAGE_URL,
+      url: buildCropPageUrl(src, aspectRatio),
       fail: () => {
         // 跳转失败，清理缓存并 resolve null
         pendingCrop = null
