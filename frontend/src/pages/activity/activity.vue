@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth'
 import { formatTimeRange } from '@/utils/datetime'
 import { parseCheckinUrl } from '@/utils/checkin-link'
 import { usePagedList } from '@/utils/use-paged-list'
+import { useShare } from '@/share/useShare'
 
 definePage({
   style: {
@@ -92,6 +93,14 @@ function scanCheckIn() {
   })
 }
 // #endif
+
+// —— 活动列表分享（小程序右上角转发/朋友圈；H5 分享面板参数预留）——
+useShare(() => ({
+  title: '众爱联盟公益活动 · 招募中，等你来参与',
+  desc: '找到身边的公益活动，报名参与奉献爱心',
+  page: '/pages/activity/activity',
+  targetType: 'activity_list',
+}))
 
 onShow(() => {
   // 从详情页报名/取消后返回、登录态变化后都刷新第一页

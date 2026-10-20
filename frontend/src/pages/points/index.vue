@@ -7,6 +7,7 @@ import {
 } from '@/api/points'
 import type { LeaderboardRow, PointsDimension, PointsFeedItem, PointsOverview } from '@/api/points'
 import { resolveMediaUrl } from '@/api/profile'
+import { useShare } from '@/share/useShare'
 
 definePage({
   style: { navigationBarTitleText: '积分排行' },
@@ -144,6 +145,14 @@ function moreFeed() {
   feedPage.value += 1
   loadFeed()
 }
+
+// —— 积分页分享（小程序右上角转发/朋友圈；H5 分享面板参数预留）——
+useShare(() => ({
+  title: '众爱联盟公益积分榜 · 爱心看得见',
+  desc: `公益积分总榜实时更新，我已攒下 ${overview.value.total} 分，一起来做公益赢积分吧`,
+  page: '/pages/points/index',
+  targetType: 'points',
+}))
 
 onMounted(() => {
   loadOverview()

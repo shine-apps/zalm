@@ -4,6 +4,7 @@ import { getHome } from '@/api/home'
 import type { HomeHighlight } from '@/api/home'
 import { getPointsFeed } from '@/api/points'
 import type { PointsFeedItem } from '@/api/points'
+import { useShare } from '@/share/useShare'
 
 defineOptions({
   name: 'Home',
@@ -58,6 +59,14 @@ function goActivityList() {
 function goPoints() {
   uni.navigateTo({ url: '/pages/points/index' })
 }
+
+// —— 首页分享（小程序右上角转发/朋友圈；H5 分享面板参数预留）——
+useShare(() => ({
+  title: '众爱联盟 · 一对一助力困境学生安心学业',
+  desc: '仁心济世 · 善行天下，一起参与公益活动吧',
+  page: '/pages/index/index',
+  targetType: 'home',
+}))
 
 // 首屏与从详情页报名后返回都刷新（与活动列表页一致，仅用 onShow 避免首屏双发）
 onShow(() => {

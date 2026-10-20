@@ -202,8 +202,10 @@ const {
   panelId: sharePanelId,
   openShare,
 } = useShare(() => ({
-  title: `${profileUser.value?.name ?? '他'}的个人主页`,
-  desc: '来看看我的志愿者主页吧～',
+  title: `${profileUser.value?.name ?? '爱心伙伴'}的志愿者主页 · 众爱联盟`,
+  desc: isOwnProfile.value
+    ? `我已参与 ${total.value} 场公益活动，累计 ${totalPoints.value} 积分，一起来做好事吧`
+    : `TA已参与 ${total.value} 场公益活动，累计 ${totalPoints.value} 积分，来看看吧`,
   page: '/pages/user-home/index',
   query: targetUserId.value ? { userId: targetUserId.value } : {},
   imageUrl: profileUser.value?.image ?? undefined,
