@@ -51,6 +51,25 @@ const canCancelReg = computed(() =>
   && now.value < new Date(detail.value.startTime).getTime(),
 )
 
+/** 分享标题后的活动状态标签；依赖 now，报名截止后自动切换。 */
+const shareStateLabel = computed(() => {
+  const a = detail.value
+  if (!a)
+    return ''
+  if (a.state === 'cancelled' || a.status === 'cancelled')
+    return '已取消'
+  if (a.state === 'ended')
+    return '已结束'
+  if (a.state === 'ongoing')
+    return '进行中'
+  if (a.remaining === 0)
+    return '名额已满'
+  const deadline = a.registerDeadline ?? a.startTime
+  if (now.value >= new Date(deadline).getTime())
+    return '报名已截止'
+  return '招募中'
+})
+
 async function load() {
   if (!activityId.value)
     return
@@ -310,7 +329,7 @@ const {
   panelId: sharePanelId,
   openShare,
 } = useShare(() => ({
-  title: detail.value ? `${detail.value.title}` : '活动详情',
+  title: detail.value ? `${detail.value.title}【${shareStateLabel.value}】` : '活动详情',
   desc: detail.value
     ? `${formatTimeRange(detail.value.startTime, detail.value.endTime)} · ${detail.value.location.name}`
     : '',

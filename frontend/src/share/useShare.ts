@@ -94,16 +94,24 @@ export function useShare(source: MaybeRefOrGetter<SharePayload>) {
   if (getPlatform() === 'wx-h5') {
     let presetQueue: Promise<void> = Promise.resolve()
     let visible = true
+    /** 上次预设内容指纹：payload 因计时器等非语义变化重算时避免重复请求与埋点。 */
+    let lastPresetKey = ''
 
     // 微信分享卡片是全局状态：从详情页返回时本页 setup 不会重跑，
     // 必须在 onShow 重新预设，否则仍会发出上一页（如活动详情）的卡片。
-    function presetWxCard() {
+    function presetWxCard(force = false) {
       const p = payload.value
       const link = p.title ? buildShareUrl(p.page, p.query) : ''
       if (!link) {
         return
       }
       const desc = p.desc || ''
+      const imgUrl = resolveShareImage(p.imageUrl)
+      const key = `${p.title}\u0001${desc}\u0001${link}\u0001${imgUrl}`
+      if (!force && key === lastPresetKey) {
+        return
+      }
+      lastPresetKey = key
       // 串行执行，避免 payload 连续变化（异步数据到达）时 wx.config 并发竞态
       presetQueue = presetQueue
         .then(async () => {
@@ -115,7 +123,7 @@ export function useShare(source: MaybeRefOrGetter<SharePayload>) {
             title: p.title,
             desc: desc.length > 60 ? `${desc.slice(0, 60)}…` : desc,
             link,
-            imgUrl: resolveShareImage(p.imageUrl),
+            imgUrl,
           })
           trackShare({
             event: ok ? 'wx_config_ok' : 'wx_config_fail',
@@ -127,10 +135,11 @@ export function useShare(source: MaybeRefOrGetter<SharePayload>) {
         .catch(() => {})
     }
 
-    watch(payload, presetWxCard, { immediate: true })
+    watch(payload, () => presetWxCard(), { immediate: true })
     onShow(() => {
       visible = true
-      presetWxCard()
+      // 返回本页时全局卡片可能已被其他页改写，强制重新覆盖
+      presetWxCard(true)
     })
     onHide(() => {
       visible = false
