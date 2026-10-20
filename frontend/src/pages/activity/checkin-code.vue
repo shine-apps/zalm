@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { getCheckInCode } from '@/api/activity'
+import { getH5SiteBase } from '@/share/url'
 import { useAuthStore } from '@/store/auth'
-import { buildCheckinUrl, getH5BaseUrl } from '@/utils/checkin-link'
+import { buildCheckinUrl } from '@/utils/checkin-link'
 import { secondsUntilNextMinute } from '@/utils/datetime'
 import { toLoginPage } from '@/utils/toLoginPage'
 
@@ -38,7 +39,7 @@ async function refresh(): Promise<void> {
     refreshFailed.value = false
     retryDelayMs = 3000
     nextRefreshAt = expiresAt.value
-    const base = getH5BaseUrl()
+    const base = getH5SiteBase()
     qrText.value = base ? buildCheckinUrl(base, activityId.value, res.code) : ''
     remainSeconds.value = Math.max(1, Math.ceil((expiresAt.value - Date.now()) / 1000))
   }
