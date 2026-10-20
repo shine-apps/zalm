@@ -5,7 +5,7 @@
 import { getH5BaseUrl } from '@/utils/checkin-link'
 
 /** 兜底分享封面：包内 1024 应用图标（小程序 imageUrl 支持代码包路径）。 */
-export const DEFAULT_SHARE_IMAGE_PATH = '/static/app/icons/1024x1024.png'
+export const DEFAULT_SHARE_IMAGE_PATH = '/static/logo.png'
 
 /** 规范化页面路径：补前导 /、去掉 query/hash。 */
 export function normalizePage(page: string): string {
@@ -103,7 +103,7 @@ export function resolveShareImage(cover?: string | null): string {
     resolved = toAbsoluteUrl(raw, typeof location !== 'undefined' ? location.origin : '')
   }
   else if (typeof location !== 'undefined') {
-    const iconPath = `${import.meta.env.BASE_URL}static/app/icons/1024x1024.png`.replace(/\/+/g, '/')
+    const iconPath = `${import.meta.env.BASE_URL}static/logo.png`.replace(/\/+/g, '/')
     resolved = toAbsoluteUrl(iconPath, location.origin)
   }
   // #endif
