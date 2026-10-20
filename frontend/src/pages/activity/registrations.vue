@@ -100,8 +100,7 @@ onLoad((options) => {
 })
 
 onShow(() => {
-  if (!auth.canManageActivity) {
-    uni.showToast({ title: '仅活动组织者可查看名单', icon: 'none' })
+  if (!auth.isLoggedIn) {
     toLoginPage({ mode: 'reLaunch', redirect: null })
     return
   }
@@ -159,14 +158,14 @@ onReachBottom(() => {
             </text>
           </view>
           <text class="mt-0.5 block text-3 text-muted">
-            {{ row.userPhone || '未绑定手机号' }}
+            {{ row.userPhone || (auth.canManageActivity ? '未绑定手机号' : '手机号未公开') }}
           </text>
           <text v-if="row.checkInAt" class="mt-0.5 block text-3 text-muted">
             签到：{{ formatDateTime(row.checkInAt) }}{{ row.checkInMethod === 'manual' ? '（补签）' : '' }}
           </text>
         </view>
         <view
-          v-if="row.status === 'registered'"
+          v-if="auth.canManageActivity && row.status === 'registered'"
           class="text-primary-soft-text ml-2 shrink-0 rounded-full bg-primary-soft px-3 py-1.5 text-3.5"
           @click="doManualCheckIn(row)"
         >

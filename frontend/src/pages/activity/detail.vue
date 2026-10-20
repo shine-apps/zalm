@@ -433,13 +433,21 @@ onUnload(() => {
           </view>
           <view v-if="detail.points > 0" class="text-primary-soft-text mt-2 flex items-center text-3.5">
             <view class="i-carbon-trophy mr-1 text-14px" />
-            签到可得 {{ detail.points }} 积分
+            参与活动可得 {{ detail.points }} 积分
           </view>
           <view v-if="detail.capacity !== null" class="mt-2 h-8px overflow-hidden rounded-full bg-hover">
             <view
               class="h-full rounded-full bg-primary transition-all"
               :style="{ width: `${progressPercent}%` }"
             />
+          </view>
+
+          <view
+            v-if="detail.registeredCount > 0"
+            class="text-primary-soft-text mt-3 flex items-center text-3.5 justify-end"
+            @click="goRegistrations"
+          >
+            <text>查看报名名单 &gt;</text>
           </view>
         </view>
 
