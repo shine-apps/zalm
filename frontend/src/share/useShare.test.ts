@@ -1,6 +1,7 @@
 import { defineComponent, h, ref } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SharePayload } from './types'
 import { useShare } from './useShare'
 
 // 捕获页面注册的小程序生命周期回调
@@ -8,21 +9,39 @@ const hooks = vi.hoisted(() => ({
   onShareAppMessage: null as null | ((...args: unknown[]) => unknown),
   onShareTimeline: null as null | ((...args: unknown[]) => unknown),
   onShow: null as null | ((...args: unknown[]) => unknown),
+  onShowList: [] as Array<() => unknown>,
+  onHideList: [] as Array<() => unknown>,
 }))
 
-const mocks = vi.hoisted(() => ({ trackShare: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  trackShare: vi.fn(),
+  configWxShare: vi.fn(),
+  platform: 'pc-h5' as 'pc-h5' | 'wx-h5',
+}))
 
 vi.mock('@dcloudio/uni-app', () => ({
   onShareAppMessage: (cb: (...args: unknown[]) => unknown) => (hooks.onShareAppMessage = cb),
   onShareTimeline: (cb: (...args: unknown[]) => unknown) => (hooks.onShareTimeline = cb),
-  onShow: (cb: (...args: unknown[]) => unknown) => (hooks.onShow = cb),
+  onShow: (cb: () => unknown) => {
+    hooks.onShow = cb
+    hooks.onShowList.push(cb)
+  },
+  onHide: (cb: () => unknown) => {
+    hooks.onHideList.push(cb)
+  },
 }))
 vi.mock('./tracker', () => ({
   trackShare: mocks.trackShare,
   createPanelId: () => 'p-us1',
 }))
+vi.mock('./platform', () => ({
+  getPlatform: () => mocks.platform,
+}))
+vi.mock('./wx-js-sdk', () => ({
+  configWxShare: mocks.configWxShare,
+}))
 
-function mountWithShare(payloadFactory: () => { title: string, page: string, query?: Record<string, string> }) {
+function mountWithShare(payloadFactory: () => SharePayload) {
   return mount(defineComponent({
     setup() {
       const share = useShare(payloadFactory)
@@ -36,8 +55,14 @@ function mountWithShare(payloadFactory: () => { title: string, page: string, que
 
 beforeEach(() => {
   mocks.trackShare.mockClear()
+  mocks.configWxShare.mockReset()
+  mocks.configWxShare.mockResolvedValue(true)
+  mocks.platform = 'pc-h5'
   hooks.onShareAppMessage = null
   hooks.onShareTimeline = null
+  hooks.onShow = null
+  hooks.onShowList = []
+  hooks.onHideList = []
   ;(uni as unknown as { showShareMenu: ReturnType<typeof vi.fn> }).showShareMenu = vi.fn()
 })
 
@@ -89,5 +114,51 @@ describe('useShare · 微信小程序生命周期', () => {
     expect(panelId).toBe('p-us1')
     expect(wrapper.vm.share.show.value).toBe(true)
     expect(mocks.trackShare).toHaveBeenCalledWith(expect.objectContaining({ event: 'panel_open' }))
+  })
+})
+
+describe('useShare · 微信 H5 卡片预设', () => {
+  it('页面 setup 后按 payload 预设卡片', async () => {
+    mocks.platform = 'wx-h5'
+    mountWithShare(() => ({ title: '首页', page: '/pages/index/index' }))
+    await flushPromises()
+
+    expect(mocks.configWxShare).toHaveBeenCalledWith(expect.objectContaining({
+      title: '首页',
+      link: expect.stringContaining('/#/pages/index/index'),
+    }))
+  })
+
+  it('从详情页返回时 onShow 重新预设本页卡片，覆盖上一页残留', async () => {
+    mocks.platform = 'wx-h5'
+    mountWithShare(() => ({ title: '首页', page: '/pages/index/index' }))
+    await flushPromises()
+
+    // 进入详情页：本页隐藏
+    hooks.onHideList.forEach(cb => cb())
+    mocks.configWxShare.mockClear()
+
+    // 返回首页：微信卡片是全局状态，需在 onShow 用本页 payload 重新覆盖
+    hooks.onShowList.forEach(cb => cb())
+    await flushPromises()
+
+    expect(mocks.configWxShare).toHaveBeenCalledWith(expect.objectContaining({
+      title: '首页',
+      link: expect.stringContaining('/#/pages/index/index'),
+    }))
+  })
+
+  it('页面隐藏后 payload 变化不再改写全局卡片', async () => {
+    mocks.platform = 'wx-h5'
+    const page = ref<SharePayload>({ title: '首页', page: '/pages/index/index' })
+    mountWithShare(() => page.value)
+    await flushPromises()
+    mocks.configWxShare.mockClear()
+
+    hooks.onHideList.forEach(cb => cb())
+    page.value = { title: '活动详情', page: '/pages/activity/detail', query: { id: 'a1' } }
+    await flushPromises()
+
+    expect(mocks.configWxShare).not.toHaveBeenCalled()
   })
 })

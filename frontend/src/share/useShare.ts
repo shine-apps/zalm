@@ -12,7 +12,7 @@
  * }))
  * // 模板：<share-sheet v-model="shareShow" :payload="sharePayload" />
  */
-import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
+import { onHide, onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { computed, ref, toValue, watch } from 'vue'
 import type { MaybeRefOrGetter } from 'vue'
 import { getPlatform } from './platform'
@@ -88,12 +88,17 @@ export function useShare(source: MaybeRefOrGetter<SharePayload>) {
   // #endif
 
   // #ifdef H5
-  // 微信内置浏览器：页面加载 / 分享参数就绪后自动预设右上角转发卡片。
+  // 微信内置浏览器：页面显示 / 分享参数变化时预设右上角转发卡片。
   // 微信网页无 JS 直接拉起分享面板的 API，预设完成后用户点右上角「···」→
   // 「发送给朋友 / 分享到朋友圈」即见自定义内容；其他浏览器与 PC 端跳过。
   if (getPlatform() === 'wx-h5') {
     let presetQueue: Promise<void> = Promise.resolve()
-    watch(payload, (p) => {
+    let visible = true
+
+    // 微信分享卡片是全局状态：从详情页返回时本页 setup 不会重跑，
+    // 必须在 onShow 重新预设，否则仍会发出上一页（如活动详情）的卡片。
+    function presetWxCard() {
+      const p = payload.value
       const link = p.title ? buildShareUrl(p.page, p.query) : ''
       if (!link) {
         return
@@ -101,20 +106,35 @@ export function useShare(source: MaybeRefOrGetter<SharePayload>) {
       const desc = p.desc || ''
       // 串行执行，避免 payload 连续变化（异步数据到达）时 wx.config 并发竞态
       presetQueue = presetQueue
-        .then(() => configWxShare({
-          title: p.title,
-          desc: desc.length > 60 ? `${desc.slice(0, 60)}…` : desc,
-          link,
-          imgUrl: resolveShareImage(p.imageUrl),
-        }))
-        .then(ok => trackShare({
-          event: ok ? 'wx_config_ok' : 'wx_config_fail',
-          targetType: p.targetType,
-          targetId: p.targetId,
-          shareUrl: link,
-        }))
+        .then(async () => {
+          // 页面已隐藏：上一页的异步数据晚到时不得覆盖当前可见页的卡片
+          if (!visible) {
+            return
+          }
+          const ok = await configWxShare({
+            title: p.title,
+            desc: desc.length > 60 ? `${desc.slice(0, 60)}…` : desc,
+            link,
+            imgUrl: resolveShareImage(p.imageUrl),
+          })
+          trackShare({
+            event: ok ? 'wx_config_ok' : 'wx_config_fail',
+            targetType: p.targetType,
+            targetId: p.targetId,
+            shareUrl: link,
+          })
+        })
         .catch(() => {})
-    }, { immediate: true })
+    }
+
+    watch(payload, presetWxCard, { immediate: true })
+    onShow(() => {
+      visible = true
+      presetWxCard()
+    })
+    onHide(() => {
+      visible = false
+    })
   }
   // #endif
 

@@ -25,6 +25,8 @@ interface WxGlobal {
 
 const JSSDK_SRC = 'https://res.wx.qq.com/open/js/jweixin-1.6.0.js'
 let scriptPromise: Promise<WxGlobal> | null = null
+/** 已完成 wx.config 的签名 URL：同一 URL 只需配置一次，后续仅更新卡片内容。 */
+let configuredSignUrl = ''
 
 /** 动态注入 jweixin（单例，避免重复注入）。 */
 function loadWxJssdk(): Promise<WxGlobal> {
@@ -103,12 +105,16 @@ export async function configWxShare(card: WxShareCard): Promise<boolean> {
   try {
     // iOS 微信 SPA 签名 URL 取首次进入 URL；hash 模式下 # 前部分整站不变，直接取当前页即可
     const signUrl = location.href.split('#')[0]
-    const config = await getWxConfig(signUrl)
-    if (!config.enabled) {
-      return false
-    }
     const wx = await loadWxJssdk()
-    await configAndReady(wx, config)
+    // 同一签名 URL 的 wx.config 只做一次；页面返回时复用已就绪的 SDK 直接更新卡片
+    if (configuredSignUrl !== signUrl) {
+      const config = await getWxConfig(signUrl)
+      if (!config.enabled) {
+        return false
+      }
+      await configAndReady(wx, config)
+      configuredSignUrl = signUrl
+    }
     wx.updateAppMessageShareData({
       title: card.title,
       desc: card.desc || '',
@@ -123,6 +129,8 @@ export async function configWxShare(card: WxShareCard): Promise<boolean> {
     enabled = true
   }
   catch {
+    // 配置失败时清空缓存，下次调用重新走签名流程
+    configuredSignUrl = ''
     enabled = false
   }
   // #endif
