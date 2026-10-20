@@ -36,7 +36,7 @@ function handleSelect(item: HeaderMenuItem) {
 
     <!-- 下拉卡片 -->
     <view
-      class="fixed left-3 z-[1002] w-130 overflow-hidden rounded-3 bg-card pb-4 shadow-lg"
+      class="fixed-menu-card fixed left-3 z-[1002] w-100 overflow-hidden rounded-3 bg-card pb-4 shadow-lg"
       :style="{ top: `${topOffset + 4}px` }"
     >
       <view
@@ -55,3 +55,15 @@ function handleSelect(item: HeaderMenuItem) {
     </view>
   </template>
 </template>
+
+<style scoped lang="scss">
+/* #ifdef H5 */
+// 桌面宽屏下下拉卡片跟随 uni-app 容器左边缘（+12px 导航栏 padding）定位
+.fixed-menu-card {
+  @media (min-width: 1024px) {
+    left: 50%;
+    transform: translateX(-372px);
+  }
+}
+/* #endif */
+</style>

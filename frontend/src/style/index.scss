@@ -23,6 +23,30 @@ page {
   color: var(--c-ink);
 }
 
+/* #ifdef H5 */
+// 仅在 ≥1024px（桌面/大尺寸笔记本）时收窄页面，模拟移动端视口；
+// 平板（iPad mini/Air 等 768–1023px）和手机保持全宽不压缩
+@media (min-width: 1024px) {
+  body {
+    background-color: var(--c-gutter);
+  }
+
+  uni-app,
+  // wot-ui 弹层（dialog/popup/action-sheet/toast）teleport 到 body 的容器
+  .wd-root-portal {
+    max-width: 768px;
+    margin: 0 auto;
+  }
+
+  uni-app {
+    min-height: 100vh;
+    background-color: var(--c-page);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+    overflow-x: hidden;
+  }
+}
+/* #endif */
+
 /*
 border-t-1
 由于uniapp中无法使用*选择器，使用魔法代替*，加上此规则可以简化border与divide的使用，并提升布局的兼容性

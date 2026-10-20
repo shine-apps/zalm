@@ -26,6 +26,8 @@ page {
   --c-page: #faf5f1;
   --c-card: #ffffff;
   --c-hover: #f6ede7;
+  /* 桌面 H5 收窄时，页面外侧留白底色（比 --c-page 稍深，衬托容器边界） */
+  --c-gutter: #dcd7d2;
 
   --c-ink: #2c211c;
   --c-sub: #6e5b52;
@@ -49,6 +51,7 @@ page {
   --c-page: #17120f;
   --c-card: #211a16;
   --c-hover: #2d241f;
+  --c-gutter: #0a0807;
 
   --c-ink: #f0e7e1;
   --c-sub: #b8a89e;

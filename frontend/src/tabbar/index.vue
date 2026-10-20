@@ -122,6 +122,17 @@ function getColorByIndex(index: number) {
   z-index: 1000;
   border-top: 1px solid var(--c-line);
   box-sizing: border-box;
+
+  /* #ifdef H5 */
+  // 桌面宽屏下跟随 uni-app 容器一起收窄居中，避免 fixed 跳出容器横跨视口
+  @media (min-width: 1024px) {
+    width: 100%;
+    max-width: 768px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+  /* #endif */
 }
 // 中间鼓包的样式
 .bulge {

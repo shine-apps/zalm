@@ -125,7 +125,7 @@ async function onMenuSelect(key: string) {
 <template>
   <view class="min-h-screen flex flex-col">
     <!-- 自定义头部导航栏 -->
-    <view class="fixed left-0 right-0 top-0 z-[999] border-b border-line bg-card">
+    <view class="layout-navbar fixed left-0 right-0 top-0 z-[999] border-b border-line bg-card">
       <!-- 状态栏占位 -->
       <view :style="{ height: `${statusBarHeight}px` }" />
       <!-- 导航栏：左侧操作区 + 右侧标题 -->
@@ -179,3 +179,18 @@ async function onMenuSelect(key: string) {
     />
   </view>
 </template>
+
+<style scoped lang="scss">
+/* #ifdef H5 */
+// 桌面宽屏下跟随 uni-app 容器一起收窄居中，避免 fixed 导航栏跳出容器横跨视口
+.layout-navbar {
+  @media (min-width: 1024px) {
+    width: 100%;
+    max-width: 768px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+  }
+}
+/* #endif */
+</style>
