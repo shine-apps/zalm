@@ -1,10 +1,6 @@
 <script lang="ts" setup>
-import {
-  CROP_EVENT_CANCEL,
-  CROP_EVENT_CONFIRM,
-  CROP_EVENT_START,
-} from '@/utils/img-crop'
-import type { CropResult, CropStartPayload } from '@/utils/img-crop'
+import { consumePendingCrop, settleCrop } from '@/utils/img-crop'
+import type { CropResult } from '@/utils/img-crop'
 
 definePage({
   // 裁剪页需要纯黑全屏，不用默认布局的自定义导航栏
@@ -14,18 +10,12 @@ definePage({
   },
 })
 
-/** 携带 getOpenerEventChannel 的页面实例（官方类型未声明该方法，按最小结构补充）。 */
-interface OpenerPage {
-  getOpenerEventChannel?: () => UniApp.EventChannel
-}
-
 const visible = ref(false)
 const imgSrc = ref('')
 const aspectRatio = ref('1:1')
 
 /** 防止 confirm/cancel 与 onUnload 重复回传。 */
 let settled = false
-let channel: UniApp.EventChannel | undefined
 
 function closeWithMissingPayload() {
   uni.showToast({ title: '裁剪参数缺失', icon: 'none' })
@@ -33,23 +23,15 @@ function closeWithMissingPayload() {
 }
 
 onLoad(() => {
-  const pages = getCurrentPages()
-  channel = (pages[pages.length - 1] as unknown as OpenerPage | undefined)
-    ?.getOpenerEventChannel?.()
-  if (!channel) {
+  const payload = consumePendingCrop()
+  if (!payload?.src) {
     closeWithMissingPayload()
     return
   }
-  channel.on(CROP_EVENT_START, (payload: CropStartPayload) => {
-    if (!payload?.src) {
-      closeWithMissingPayload()
-      return
-    }
-    imgSrc.value = payload.src
-    aspectRatio.value = payload.aspectRatio || '1:1'
-    nextTick(() => {
-      visible.value = true
-    })
+  imgSrc.value = payload.src
+  aspectRatio.value = payload.aspectRatio || '1:1'
+  nextTick(() => {
+    visible.value = true
   })
 })
 
@@ -57,7 +39,7 @@ function handleConfirm(result: CropResult) {
   if (settled)
     return
   settled = true
-  channel?.emit(CROP_EVENT_CONFIRM, result)
+  settleCrop(result)
   uni.navigateBack()
 }
 
@@ -65,7 +47,7 @@ function handleCancel() {
   if (settled)
     return
   settled = true
-  channel?.emit(CROP_EVENT_CANCEL)
+  settleCrop(null)
   uni.navigateBack()
 }
 
@@ -74,7 +56,7 @@ onUnload(() => {
   if (settled)
     return
   settled = true
-  channel?.emit(CROP_EVENT_CANCEL)
+  settleCrop(null)
 })
 </script>
 

@@ -3,19 +3,14 @@
  *
  * 调用方选图拿到本地 URI（H5 为 blob: URL，小程序为临时文件路径）后调用 cropImage，
  * 用户在裁剪页确认后 resolve 裁剪结果，取消或跳转失败 resolve null。
- * 图片源通过 uni.navigateTo 的 eventChannel 传递（内存对象），
- * 避免 blob:/wxfile: 等本地 URI 走 URL query 的编码与长度问题。
+ *
+ * 使用模块级变量 pendingCrop / pendingResolver 在调用方和裁剪页之间传递数据，
+ * 避免 uni.navigateTo eventChannel 在 H5 环境下因路由时序问题导致事件丢失
+ * （emit 写入旧 meta.eventChannel 实例的缓存，on 监听新实例，两端完全断开）。
  */
 
 /** 裁剪页路由（vite-plugin-uni-pages 按文件路径自动注册）。 */
 export const CROP_PAGE_URL = '/pages/tools/img-cropper'
-
-/** 打开页 → 裁剪页：携带图片源与宽高比。 */
-export const CROP_EVENT_START = 'crop:start'
-/** 裁剪页 → 打开页：裁剪确认。 */
-export const CROP_EVENT_CONFIRM = 'crop:confirm'
-/** 裁剪页 → 打开页：用户取消或页面被关闭。 */
-export const CROP_EVENT_CANCEL = 'crop:cancel'
 
 /** wd-img-cropper confirm 事件载荷（width/height 为导出像素尺寸）。 */
 export interface CropResult {
@@ -29,6 +24,9 @@ export interface CropStartPayload {
   src: string
   aspectRatio: string
 }
+
+/** 裁剪页 resolve 回调类型。 */
+export type CropResolver = (result: CropResult | null) => void
 
 /** 裁剪产物读取后的可上传数据：H5 为 File，小程序为临时路径 + 体积。 */
 export interface CroppedImageData {
@@ -51,23 +49,59 @@ export interface CroppedImageData {
 /** 与裁剪页 wd-img-cropper 的 file-type 保持一致。 */
 const CROP_CONTENT_TYPE = 'image/jpeg'
 
+// —— 模块级跨页通信容器 ——
+
+/** 调用方写入 → 裁剪页 onLoad 读取。 */
+let pendingCrop: CropStartPayload | null = null
+
+/** 裁剪完成 → 调用方 Promise resolve。 */
+let pendingResolver: CropResolver | null = null
+
+/**
+ * 裁剪页读取待处理的裁剪参数。
+ * 返回后模块内缓存清空，防止二次消费。
+ */
+export function consumePendingCrop(): CropStartPayload | null {
+  const payload = pendingCrop
+  pendingCrop = null
+  return payload
+}
+
+/**
+ * 裁剪页回传结果并清理 resolver。
+ * confirm 时传裁剪产物，cancel/onUnload 时传 null。
+ */
+export function settleCrop(result: CropResult | null): void {
+  const resolver = pendingResolver
+  pendingResolver = null
+  if (resolver)
+    resolver(result)
+}
+
 /**
  * 打开裁剪页并等待裁剪结果。
  * @returns 裁剪确认返回 CropResult；用户取消或跳转失败返回 null
  */
 export function cropImage(src: string, aspectRatio: string): Promise<CropResult | null> {
   return new Promise((resolve) => {
+    // 防重入：如果上一次 cropImage 还没结算（如用户快速双击上传），
+    // 先以 null 结算旧 Promise，避免悬挂
+    if (pendingResolver) {
+      pendingResolver(null)
+      pendingResolver = null
+    }
+    // 写入模块级变量，裁剪页 onLoad 后读取
+    pendingCrop = { src, aspectRatio }
+    pendingResolver = resolve
+
     uni.navigateTo({
       url: CROP_PAGE_URL,
-      events: {
-        [CROP_EVENT_CONFIRM]: (data: CropResult) => resolve(data),
-        [CROP_EVENT_CANCEL]: () => resolve(null),
+      fail: () => {
+        // 跳转失败，清理缓存并 resolve null
+        pendingCrop = null
+        pendingResolver = null
+        resolve(null)
       },
-      success: (res) => {
-        const payload: CropStartPayload = { src, aspectRatio }
-        res.eventChannel.emit(CROP_EVENT_START, payload)
-      },
-      fail: () => resolve(null),
     })
   })
 }

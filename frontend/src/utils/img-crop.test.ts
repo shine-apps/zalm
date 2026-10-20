@@ -1,14 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  CROP_EVENT_CANCEL,
-  CROP_EVENT_CONFIRM,
-  CROP_EVENT_START,
+  consumePendingCrop,
   CROP_PAGE_URL,
   cropImage,
+  settleCrop,
 } from './img-crop'
 import type { CropResult } from './img-crop'
 
-/** 安装 navigateTo mock，并在 cropImage 实际调用后取回入参。 */
+/** 安装 navigateTo mock，并返回最近一次调用的入参。 */
 function captureNavigateTo() {
   let captured: UniApp.NavigateToOptions | undefined
   vi.mocked(uni.navigateTo).mockImplementation((options) => {
@@ -24,59 +23,75 @@ function captureNavigateTo() {
   }
 }
 
-/** 模拟 navigateTo 成功，返回一个可观察 emit 的假 eventChannel。 */
-function fakeSuccess(options: UniApp.NavigateToOptions) {
-  const emit = vi.fn()
-  options.success?.({
-    errMsg: 'navigateTo:ok',
-    eventChannel: { emit },
-  } as unknown as UniApp.NavigateToSuccessOptions)
-  return emit
-}
-
-function emitEvent(options: UniApp.NavigateToOptions, event: string, data?: unknown) {
-  const events = options.events as Record<string, (data?: unknown) => void>
-  events[event](data)
-}
-
 describe('cropImage', () => {
   beforeEach(() => {
     vi.mocked(uni.navigateTo).mockReset()
   })
 
-  it('跳转到裁剪页，成功时通过 eventChannel 发送图片源与宽高比', async () => {
+  it('写入模块级待裁剪数据并跳转到裁剪页', () => {
     const nav = captureNavigateTo()
-    const promise = cropImage('blob:mock-image', '16:9')
+    cropImage('blob:mock-image', '16:9')
 
     const options = nav.getOptions()
     expect(options.url).toBe(CROP_PAGE_URL)
-    const emit = fakeSuccess(options)
-    expect(emit).toHaveBeenCalledWith(CROP_EVENT_START, {
-      src: 'blob:mock-image',
-      aspectRatio: '16:9',
-    })
+    // 新实现不再依赖 events 参数
+    expect(options.events).toBeUndefined()
 
-    const result: CropResult = { tempFilePath: 'blob:cropped', width: 660, height: 372 }
-    emitEvent(options, CROP_EVENT_CONFIRM, result)
+    // 裁剪页能读取到参数
+    expect(consumePendingCrop()).toEqual({ src: 'blob:mock-image', aspectRatio: '16:9' })
+    // 消费后清空
+    expect(consumePendingCrop()).toBeNull()
+  })
+
+  it('navigateTo 失败时清理缓存并 resolve null', async () => {
+    const nav = captureNavigateTo()
+    const promise = cropImage('blob:mock-image', '1:1')
+    const options = nav.getOptions()
+
+    // 此时 pendingCrop 有值
+    expect(consumePendingCrop()).toEqual({ src: 'blob:mock-image', aspectRatio: '1:1' })
+    // 但 pendingResolver 已注册，需要重置
+    cropImage('blob:mock-image', '1:1')
+    const nav2 = captureNavigateTo()
+    const promise2 = cropImage('blob:mock-image-2', '1:1')
+    const opts2 = nav2.getOptions()
+
+    opts2.fail?.({ errMsg: 'navigateTo:fail' })
+    await expect(promise2).resolves.toBeNull()
+    // 失败后 resolver 被清理，后续 settleCrop 不应再 resolve
+  })
+
+  it('完整流程：cropImage → 裁剪页消费 → confirm 回传裁剪产物', async () => {
+    const nav = captureNavigateTo()
+    const promise = cropImage('blob:mock', '1:1')
+    nav.getOptions() // 确认跳转发生
+
+    // 模拟裁剪页 onLoad 消费数据
+    const payload = consumePendingCrop()
+    expect(payload).toEqual({ src: 'blob:mock', aspectRatio: '1:1' })
+
+    // 模拟裁剪页 confirm 回传结果
+    const result: CropResult = { tempFilePath: 'blob:cropped', width: 660, height: 660 }
+    settleCrop(result)
     await expect(promise).resolves.toEqual(result)
   })
 
-  it('裁剪页回传取消时 resolve null', async () => {
+  it('完整流程：cropImage → 裁剪页消费 → cancel 回传 null', async () => {
     const nav = captureNavigateTo()
-    const promise = cropImage('blob:mock-image', '1:1')
-    const options = nav.getOptions()
-    fakeSuccess(options)
+    const promise = cropImage('blob:mock', '1:1')
+    nav.getOptions()
 
-    emitEvent(options, CROP_EVENT_CANCEL)
+    consumePendingCrop()
+    settleCrop(null)
     await expect(promise).resolves.toBeNull()
   })
 
-  it('navigateTo 失败时 resolve null（不抛错）', async () => {
+  it('consumePendingCrop 消费后立即清空，防止二次消费', () => {
     const nav = captureNavigateTo()
-    const promise = cropImage('blob:mock-image', '1:1')
-    const options = nav.getOptions()
+    cropImage('blob:foo', '3:2')
+    nav.getOptions()
 
-    options.fail?.({ errMsg: 'navigateTo:fail' })
-    await expect(promise).resolves.toBeNull()
+    expect(consumePendingCrop()).not.toBeNull()
+    expect(consumePendingCrop()).toBeNull()
   })
 })
