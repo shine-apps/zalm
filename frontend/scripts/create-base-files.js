@@ -43,6 +43,11 @@ const pages = {
   easycom: {
     autoscan: true,
     custom: {
+      // 注意：此兜底 easycom 配置必须与 pages.config.ts 保持一致。
+      // uni 构建期 easycom 转换在构建启动时读取 pages.json，Docker 干净检出时
+      // 本文件先于 vite-plugin-uni-pages 生成 pages.json，缺失的规则（如 wd-*）
+      // 会导致对应组件库不被打包，生产环境弹窗类组件全部静默失效。
+      '^wd-(.*)': '@wot-ui/ui/components/wd-$1/wd-$1.vue',
       '^fg-(.*)': '@/components/fg-$1/fg-$1.vue',
       '^(?!z-paging-refresh|z-paging-load-more)z-paging(.*)':
         'z-paging/components/z-paging$1/z-paging$1.vue',
