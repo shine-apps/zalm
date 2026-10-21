@@ -97,7 +97,7 @@ function pickThemeBrand() {
 }
 
 // 菜单分组（仅「关于众爱联盟」已落地，其余为标准模板预留入口）
-// admin 角色额外展示后台管理入口，通过 webview 加载 PC 后台页面
+// admin 角色额外展示积分管理入口（App 原生页，复用后端 admin API）
 const menuGroups = computed<MeMenuItem[][]>(() => {
   const firstGroup: MeMenuItem[] = [
     { key: 'user-home', label: '个人主页', icon: 'i-carbon-user-avatar', url: '/pages/user-home/index' },
@@ -112,7 +112,7 @@ const menuGroups = computed<MeMenuItem[][]>(() => {
       key: 'admin-points',
       label: '积分管理',
       icon: 'i-carbon-cdi',
-      url: '/pages/admin/webview?path=%2Fadmin%2Fpoints&title=%E7%A7%AF%E5%88%86%E7%AE%A1%E7%90%86',
+      url: '/pages/admin/points',
     })
   }
   return [

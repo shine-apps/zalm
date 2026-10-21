@@ -37,3 +37,19 @@ export function getUserRegistrations(
     meta: { rawEnvelope: true },
   }) as unknown as Promise<Paged<MyRegistrationItem>>
 }
+
+/** 管理端用户搜索候选项（积分录入表单用）。 */
+export interface AdminUserOption {
+  id: string
+  name: string
+  phoneNumber: string | null
+  email: string
+}
+
+/** GET /api/admin/users — 按姓名/手机号搜索用户（仅 admin，取前 8 条）。 */
+export function searchAdminUsers(keyword: string): Promise<Paged<AdminUserOption>> {
+  return http.Get('/admin/users', {
+    params: { keyword, page: 1, pageSize: 8 },
+    meta: { rawEnvelope: true },
+  }) as unknown as Promise<Paged<AdminUserOption>>
+}
