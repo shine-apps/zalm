@@ -77,7 +77,12 @@ export default defineConfig(({ command, mode }) => {
     base: VITE_APP_PUBLIC_BASE,
     plugins: [
       // UniXXX 需要在 Uni 之前引入
-      UniLayouts(),
+      // 全局默认布局按平台区分：H5 用悬浮图标的 simple-nav，小程序/App 保持 default；
+      // 页面 definePage({ layout }) 仍可覆盖（如 blank）
+      UniLayouts({
+        // 注意：插件内部布局名是 camelCase（simple-nav.vue -> simpleNav），写 kebab 会静默不包裹
+        layout: UNI_PLATFORM === 'h5' ? 'simpleNav' : 'default',
+      }),
       UniPlatform(),
       UniManifest(),
       UniComponents({

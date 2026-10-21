@@ -2,7 +2,6 @@ import AdapterUniapp from '@alova/adapter-uniapp'
 import { createAlova } from 'alova'
 import VueHook from 'alova/vue'
 import { cookieJar } from './cookie-jar'
-import { toLoginPage } from '@/utils/toLoginPage'
 
 /** 后端统一成功响应结构：{ code:'OK', data, pagination? } */
 export interface ApiEnvelope<T = any> {
@@ -32,7 +31,7 @@ export interface RequestMeta {
   rawEnvelope?: boolean
   /** 出错时是否自动 toast（默认 true）。 */
   toast?: boolean
-  /** 401 时是否跳过“清态并跳转登录页”（用于启动时静默探测会话）。 */
+  /** 401 时是否跳过“清态并弹提示”（用于启动时静默探测会话）。 */
   skipAuthRedirect?: boolean
   [key: string]: unknown
 }
@@ -44,10 +43,10 @@ let baseURL = '/api'
 baseURL = `${import.meta.env.VITE_SERVER_BASEURL}/api`
 // #endif
 
-// 防止并发 401 时重复跳转登录页
-let redirectingToLogin = false
-
-/** 401：清除本地登录态并跳转登录页（Cookie 单通道，无 refresh token 概念）。 */
+/**
+ * 401：仅清除本地登录态（Cookie 单通道，无 refresh token 概念），不自动跳转登录页。
+ * 登录引导由受保护页面的 onShow 守卫或用户主动操作（如「登录」按钮、报名）负责。
+ */
 async function handleUnauthorized() {
   try {
     // 动态引入以打破 alova <-> store <-> api 之间的静态循环依赖
@@ -56,13 +55,6 @@ async function handleUnauthorized() {
   }
   catch {
     // 忽略 store 尚未就绪的极端情况
-  }
-  if (!redirectingToLogin) {
-    redirectingToLogin = true
-    toLoginPage({ mode: 'reLaunch' })
-    setTimeout(() => {
-      redirectingToLogin = false
-    }, 800)
   }
 }
 
@@ -73,7 +65,7 @@ function pickMessage(raw: unknown): string {
 /**
  * alova 请求实例（Cookie 会话模式）。
  * - beforeRequest 不注入 Authorization，会话完全由 HttpOnly Cookie 承载；
- * - responded 解析后端统一结构，code !== 'OK' 抛错，HTTP 401 清态跳登录。
+ * - responded 解析后端统一结构，code !== 'OK' 抛错，HTTP 401 仅清态不跳转。
  */
 const alovaInstance = createAlova({
   baseURL,

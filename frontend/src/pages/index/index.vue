@@ -11,7 +11,6 @@ defineOptions({
 })
 definePage({
   type: 'home',
-  layout: 'blank',
   style: {
     navigationBarTitleText: '首页',
   },

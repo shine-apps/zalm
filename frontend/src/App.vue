@@ -19,7 +19,7 @@ onLaunch((options) => {
   // 恢复持久化的主题选择并监听系统深浅色变化（H5 同步 class 到 documentElement）
   useThemeStore().init()
   // 启动时用已有会话 Cookie 静默恢复登录态；未登录则安静停留在公开首页，
-  // 进入受保护页或后续请求 401 时再引导登录。登录态恢复成功后拉未读消息数驱动红点。
+  // 进入受保护页时由页面守卫引导登录（请求 401 只清态、不自动跳转）。登录态恢复成功后拉未读消息数驱动红点。
   useAuthStore()
     .fetchMe(true)
     .then(() => useNotificationStore().fetchUnreadCount())
