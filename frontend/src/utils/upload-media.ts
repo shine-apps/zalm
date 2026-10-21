@@ -1,10 +1,12 @@
-import type { MediaFileRow, MediaType } from '@/api/media'
+import type { MediaFileRow, MediaScope, MediaType } from '@/api/media'
 import { getMediaCredential, registerMedia } from '@/api/media'
 import { buildPostFormFields } from '@/utils/cos-post'
 
 /** 待上传的单个媒体来源：H5 传 file，微信小程序等端传 path。 */
 export interface UploadMediaSource {
   type: MediaType
+  /** 可选业务路径段（如 activity / avatar），决定 COS key 的二级目录 */
+  scope?: MediaScope
   /** H5 原生 File 对象 */
   file?: File
   /** 小程序等端的本地临时文件路径 */
@@ -38,10 +40,11 @@ export async function uploadMedia(
   source: UploadMediaSource,
   options: UploadMediaOptions = {},
 ): Promise<MediaFileRow> {
-  const { type, name, size, contentType, width, height, duration } = source
+  const { type, scope, name, size, contentType, width, height, duration } = source
 
   const cred = await getMediaCredential({
     type,
+    ...(scope ? { scope } : {}),
     contentType,
     size,
     filename: name,

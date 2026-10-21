@@ -183,6 +183,7 @@ async function handleSave() {
         <media-uploader
           ref="avatarUploader"
           type="image"
+          scope="avatar"
           bare
           crop-aspect="1:1"
           @change="onAvatarChange"

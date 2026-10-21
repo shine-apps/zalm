@@ -65,6 +65,18 @@ describe('buildObjectKey', () => {
     expect(key).toMatch(/^files\/[0-9a-f-]{36}$/)
   })
 
+  it('inserts the scope segment after the prefix when provided', () => {
+    expect(buildObjectKey('image', 'jpg', 'activity')).toMatch(
+      /^images\/activity\/[0-9a-f-]{36}\.jpg$/
+    )
+    expect(buildObjectKey('video', 'mp4', 'activity')).toMatch(
+      /^videos\/activity\/[0-9a-f-]{36}\.mp4$/
+    )
+    expect(buildObjectKey('image', 'png', 'avatar')).toMatch(
+      /^images\/avatar\/[0-9a-f-]{36}\.png$/
+    )
+  })
+
   it('builds keys that parse back to the same type', () => {
     for (const type of ['image', 'video', 'audio', 'file'] as const) {
       const key = buildObjectKey(type, extFromMime(
@@ -83,8 +95,17 @@ describe('buildObjectKey', () => {
 
 describe('parseObjectKey', () => {
   it('parses legitimate keys', () => {
-    expect(parseObjectKey(`images/${UUID}.jpg`)).toEqual({ type: 'image', id: UUID, ext: 'jpg' })
-    expect(parseObjectKey(`files/${UUID}`)).toEqual({ type: 'file', id: UUID, ext: null })
+    expect(parseObjectKey(`images/${UUID}.jpg`)).toEqual({ type: 'image', scope: null, id: UUID, ext: 'jpg' })
+    expect(parseObjectKey(`files/${UUID}`)).toEqual({ type: 'file', scope: null, id: UUID, ext: null })
+  })
+
+  it('parses keys with a whitelisted scope segment', () => {
+    expect(parseObjectKey(`images/activity/${UUID}.jpg`))
+      .toEqual({ type: 'image', scope: 'activity', id: UUID, ext: 'jpg' })
+    expect(parseObjectKey(`videos/activity/${UUID}.mp4`))
+      .toEqual({ type: 'video', scope: 'activity', id: UUID, ext: 'mp4' })
+    expect(parseObjectKey(`images/avatar/${UUID}`))
+      .toEqual({ type: 'image', scope: 'avatar', id: UUID, ext: null })
   })
 
   it('rejects path traversal and forged keys', () => {
@@ -95,6 +116,12 @@ describe('parseObjectKey', () => {
     expect(parseObjectKey(`evil/${UUID}.jpg`)).toBeNull()
     expect(parseObjectKey(`images/${UUID}.EXE`)).toBeNull()
     expect(parseObjectKey('')).toBeNull()
+  })
+
+  it('rejects non-whitelisted or nested scope segments', () => {
+    expect(parseObjectKey(`images/evil/${UUID}.jpg`)).toBeNull()
+    expect(parseObjectKey(`images/activity/sub/${UUID}.jpg`)).toBeNull()
+    expect(parseObjectKey(`images/activity/../avatar/${UUID}.jpg`)).toBeNull()
   })
 
   it('derives type strictly from the registered prefix', () => {

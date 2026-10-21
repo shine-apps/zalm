@@ -218,6 +218,7 @@ async function handleConfirmPhone() {
       <media-uploader
         ref="avatarUploader"
         type="image"
+        scope="avatar"
         bare
         crop-aspect="1:1"
         @change="onAvatarChange"

@@ -165,6 +165,7 @@ onLoad((options) => {
         <media-uploader
           ref="albumUploader"
           type="mixed"
+          scope="activity"
           multiple
           :max-count="9"
           @change="onUploadChange"

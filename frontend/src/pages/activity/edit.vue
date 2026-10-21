@@ -431,7 +431,7 @@ async function onSubmit() {
         </view>
       </view>
       <!-- 上传前先按 16:9 裁剪 -->
-      <media-uploader ref="coverUploader" type="image" bare crop-aspect="16:9" @change="onCoverChange" />
+      <media-uploader ref="coverUploader" type="image" scope="activity" bare crop-aspect="16:9" @change="onCoverChange" />
     </view>
 
     <!-- 活动分类（必选，可多选） -->

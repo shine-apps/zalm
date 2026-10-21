@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { MediaItem } from '@/api/media'
+import type { MediaItem, MediaScope } from '@/api/media'
 import type { CropResult } from '@/utils/img-crop'
 import { readCroppedImage } from '@/utils/img-crop'
 import { uploadMedia } from '@/utils/upload-media'
@@ -27,7 +27,7 @@ interface PendingSource {
   duration?: number
 }
 
-const props = withDefaults(defineProps<{
+interface Props {
   type: UploaderType
   modelValue?: MediaItem[]
   multiple?: boolean
@@ -40,13 +40,18 @@ const props = withDefaults(defineProps<{
    * 仅 type='image' 且非多选（maxCount 为 1）时生效，视频与多选不裁剪。
    */
   cropAspect?: string
-}>(), {
+  /** 业务路径段（如 activity / avatar），决定 COS key 的二级目录。 */
+  scope?: MediaScope
+}
+
+const props = withDefaults(defineProps<Props>(), {
   modelValue: () => [],
   multiple: false,
   maxCount: undefined,
   disabled: false,
   bare: false,
   cropAspect: undefined,
+  scope: undefined,
 })
 
 const emit = defineEmits<{
@@ -334,7 +339,7 @@ async function process(tempId: string) {
 
   try {
     const row = await uploadMedia(
-      { ...source, type: source.mediaType },
+      { ...source, type: source.mediaType, scope: props.scope },
       {
         onProgress: (progress) => {
           const target = items.value.find(i => i.id === tempId)

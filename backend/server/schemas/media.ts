@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { keywordQuerySchema, pageQuerySchema } from '../utils/pagination'
+import { MEDIA_SCOPES } from '../utils/media'
 
 const mediaTypeSchema = z.enum(['image', 'video', 'audio', 'file'])
 
@@ -7,6 +8,8 @@ const mediaTypeSchema = z.enum(['image', 'video', 'audio', 'file'])
 export const credentialBodySchema = z
   .object({
     type: mediaTypeSchema,
+    /** 可选业务路径段，如 activity（活动相册/封面）、avatar（个人头像） */
+    scope: z.enum(MEDIA_SCOPES).optional(),
     contentType: z.string().trim().min(1).max(100),
     size: z.number().int().positive().max(500 * 1024 * 1024).optional(),
     filename: z.string().trim().min(1).max(200).optional()

@@ -8,6 +8,11 @@ export type MediaType = 'image' | 'video' | 'audio' | 'file'
 
 export const MEDIA_TYPES = ['image', 'video', 'audio', 'file'] as const
 
+/** 业务路径段白名单：activity=活动相册/封面，avatar=个人头像。 */
+export const MEDIA_SCOPES = ['activity', 'avatar'] as const
+
+export type MediaScope = (typeof MEDIA_SCOPES)[number]
+
 /** media_file.metadata jsonb 的结构（键均可缺省）。 */
 export interface MediaMetadata {
   /** COS 对象键 */
@@ -111,35 +116,47 @@ export function extFromMime(mime: string | undefined | null): string | null {
 }
 
 /**
- * 生成 COS 对象键：`<prefix><uuid>.<ext>`。
- * 服务端生成随机 UUID，客户端无法预测或覆盖他人对象。
+ * 生成 COS 对象键：`<prefix>[<scope>/]<uuid>[.<ext>]`。
+ * 服务端生成随机 UUID，客户端无法预测或覆盖他人对象；
+ * scope 为可选业务路径段（白名单值），如 `images/activity/<uuid>.jpg`。
  */
-export function buildObjectKey(type: MediaType, ext?: string | null): string {
+export function buildObjectKey(
+  type: MediaType,
+  ext?: string | null,
+  scope?: MediaScope | null
+): string {
   const { prefix } = MEDIA_TYPE_CONFIG[type]
   const safeExt = ext && /^[a-z0-9]{1,8}$/.test(ext) ? `.${ext}` : ''
-  return `${prefix}${crypto.randomUUID()}${safeExt}`
+  const scopeSeg = scope ? `${scope}/` : ''
+  return `${prefix}${scopeSeg}${crypto.randomUUID()}${safeExt}`
 }
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/
 
 export interface ParsedObjectKey {
   type: MediaType
+  /** 业务路径段；旧格式（无 scope）为 null */
+  scope: MediaScope | null
   id: string
   ext: string | null
 }
 
 /**
- * 严格解析对象键：`<prefix><uuid>[.<ext>]`。
- * 前缀必须与某类型注册前缀完全一致；不匹配（含 `../`、伪造前缀、非 uuid）返回 null。
+ * 严格解析对象键：`<prefix>[<scope>/]<uuid>[.<ext>]`。
+ * 前缀必须与某类型注册前缀完全一致；scope 只接受白名单值或缺省（兼容旧 key）；
+ * 不匹配（含 `../`、伪造前缀、非 uuid）返回 null。
  */
 export function parseObjectKey(key: string): ParsedObjectKey | null {
   for (const type of MEDIA_TYPES) {
     const { prefix } = MEDIA_TYPE_CONFIG[type]
     if (!key.startsWith(prefix)) continue
     const rest = key.slice(prefix.length)
-    const match = new RegExp(`^(${UUID_RE.source})(?:\\.([a-z0-9]{1,8}))?$`).exec(rest)
+    const scopeAlt = MEDIA_SCOPES.join('|')
+    const match = new RegExp(
+      `^(?:(${scopeAlt})\\/)?(${UUID_RE.source})(?:\\.([a-z0-9]{1,8}))?$`
+    ).exec(rest)
     if (!match) return null
-    return { type, id: match[1]!, ext: match[2] ?? null }
+    return { type, scope: (match[1] as MediaScope | undefined) ?? null, id: match[2]!, ext: match[3] ?? null }
   }
   return null
 }

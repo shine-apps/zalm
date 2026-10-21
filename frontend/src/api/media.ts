@@ -2,6 +2,9 @@ import { http } from '@/http/alova'
 
 export type MediaType = 'image' | 'video' | 'audio' | 'file'
 
+/** 业务路径段白名单：activity=活动相册/封面，avatar=个人头像。 */
+export type MediaScope = 'activity' | 'avatar'
+
 /** media_file.metadata jsonb 的结构（键均可缺省）。 */
 export interface MediaMetadata {
   key?: string
@@ -46,6 +49,8 @@ export interface UploadCredentialResult {
 
 export interface CredentialRequestBody {
   type: MediaType
+  /** 可选业务路径段，生成 key 时作为类型前缀后的二级目录 */
+  scope?: MediaScope
   contentType: string
   size?: number
   filename?: string
