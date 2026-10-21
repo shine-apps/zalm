@@ -37,6 +37,7 @@ describe('toFeedItem（全站动态：隐私裁剪）', () => {
       points: 10,
       category: 'activity',
       source: 'checkin',
+      activityId: 'a1',
       activityTitle: '敬老院慰问',
       donationKind: null,
       createdAt: '2026-10-14T01:00:00.000Z'
@@ -59,6 +60,7 @@ describe('toFeedItem（全站动态：隐私裁剪）', () => {
     })
     expect(item.donationKind).toBe('money')
     expect(item.activityTitle).toBeNull()
+    expect(item.activityId).toBeNull()
     expect('note' in item).toBe(false)
   })
 })

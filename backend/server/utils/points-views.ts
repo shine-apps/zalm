@@ -31,6 +31,7 @@ export interface PointsFeedItem {
   points: number
   category: PointsCategory
   source: PointsSource
+  activityId: string | null
   activityTitle: string | null
   donationKind: 'money' | 'goods' | null
   createdAt: string
@@ -46,6 +47,7 @@ export function toFeedItem(row: FeedJoinInput): PointsFeedItem {
     points: row.points,
     category: row.category,
     source: row.source,
+    activityId: row.category === 'activity' ? row.activityId : null,
     activityTitle: row.category === 'activity' ? row.activityTitle : null,
     donationKind: row.category === 'donation' ? row.donationKind : null,
     createdAt: row.createdAt.toISOString()

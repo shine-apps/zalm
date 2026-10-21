@@ -31,6 +31,7 @@ export interface PointsFeedItem {
   points: number
   category: PointsCategory
   source: PointsSource
+  activityId: string | null
   activityTitle: string | null
   donationKind: DonationKind | null
   createdAt: string

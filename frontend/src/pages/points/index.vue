@@ -46,6 +46,15 @@ function goLedger() {
   uni.navigateTo({ url: '/pages/points/ledger' })
 }
 
+function goUserHome(userId: string) {
+  uni.navigateTo({ url: `/pages/user-home/index?userId=${userId}` })
+}
+
+function goActivity(item: PointsFeedItem) {
+  if (item.category === 'activity' && item.activityId)
+    uni.navigateTo({ url: `/pages/activity/detail?id=${item.activityId}` })
+}
+
 // 请求世代号：切维度时使在途旧请求失效，避免旧维度数据覆盖新 Tab
 let rankSeq = 0
 async function loadRanks(reset = false) {
@@ -164,8 +173,18 @@ onMounted(() => {
       <view class="i-carbon-chevron-right text-4 text-muted" />
     </view> -->
 
+    <!-- 排行榜说明 -->
+    <view class="rounded-3 bg-card px-4 py-3 shadow-sm">
+      <view class="text-4.5 text-ink font-semibold">
+        积分排行榜
+      </view>
+      <view class="mt-1 text-3.5 text-muted leading-relaxed">
+        参加活动签到、爱心捐献都能获得积分，爱心看得见！点击头像或昵称即可进入 TA 的主页，带 › 图标的动态还能跳转活动详情。
+      </view>
+    </view>
+
     <!-- 榜单维度切换 -->
-    <view class="mt-6 flex rounded-3 bg-card p-1 shadow-sm">
+    <view class="mt-3 flex rounded-3 bg-card p-1 shadow-sm">
       <view
         v-for="t in tabs" :key="t.value"
         class="flex-1 rounded-2 py-2 text-center text-4"
@@ -179,7 +198,12 @@ onMounted(() => {
     <!-- 前三名（纯样式奖牌，不用 emoji） -->
     <view v-if="ranks.length" class="mt-3 flex items-end justify-around rounded-3 bg-card py-4 shadow-sm">
       <template v-for="idx in [1, 0, 2]" :key="ranks[idx]?.userId ?? idx">
-        <view v-if="ranks[idx]" class="flex flex-col items-center" :class="idx === 0 ? 'order-2' : idx === 1 ? 'order-1' : 'order-3'">
+        <view
+          v-if="ranks[idx]"
+          class="flex flex-col items-center"
+          :class="idx === 0 ? 'order-2' : idx === 1 ? 'order-1' : 'order-3'"
+          @click="goUserHome(ranks[idx]!.userId)"
+        >
           <view class="relative">
             <image :src="avatar(ranks[idx]!.image)" class="rounded-full bg-hover" :class="idx === 0 ? 'h-16 w-16' : 'h-12 w-12'" />
             <view
@@ -201,6 +225,7 @@ onMounted(() => {
         v-for="row in ranks" :key="row.userId"
         class="flex items-center px-4 py-3"
         :class="[row.rank > 1 ? 'border-t border-line' : '', row.isMe ? 'bg-primary-soft' : '']"
+        @click="goUserHome(row.userId)"
       >
         <text class="w-8 text-4 text-muted">{{ row.rank }}</text>
         <image :src="avatar(row.image)" class="h-9 w-9 rounded-full bg-hover" />
@@ -226,16 +251,18 @@ onMounted(() => {
       <view
         v-for="item in feed" :key="item.id"
         class="flex items-center border-t border-line px-4 py-3"
+        @click="goActivity(item)"
       >
-        <image :src="avatar(item.userImage)" class="h-9 w-9 rounded-full bg-hover" />
+        <image :src="avatar(item.userImage)" class="h-9 w-9 rounded-full bg-hover" @click.stop="goUserHome(item.userId)" />
         <view class="ml-3 flex-1">
-          <text class="text-4 text-ink">{{ item.userName }}</text>
+          <text class="text-4 text-ink" @click.stop="goUserHome(item.userId)">{{ item.userName }}</text>
           <text class="ml-1 text-3.5 text-muted">{{ feedText(item) }}</text>
           <view class="mt-0.5 text-3 text-muted">
             {{ timeAgo(item.createdAt) }}
           </view>
         </view>
         <text class="text-primary-soft-text text-4 font-semibold">+{{ item.points }}</text>
+        <view v-if="item.category === 'activity' && item.activityId" class="i-carbon-chevron-right ml-1 text-4 text-muted" />
       </view>
       <view v-if="feed.length < feedTotal" class="py-3 text-center text-3.5 text-muted" @click="moreFeed">
         {{ feedLoading ? '加载中…' : '加载更多' }}
