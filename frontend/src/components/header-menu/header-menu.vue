@@ -7,12 +7,16 @@ export interface HeaderMenuItem {
   danger?: boolean
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   show: boolean
   /** fixed 头部总高度 + 偏移，用于下拉卡片的 top 定位 */
   topOffset: number
   menuItems: HeaderMenuItem[]
-}>()
+  /** 下拉卡片贴靠的屏幕侧：default 布局贴左，simpleNav 布局贴右 */
+  side?: 'left' | 'right'
+}>(), {
+  side: 'left',
+})
 
 const emit = defineEmits<{
   'update:show': [value: boolean]
@@ -36,13 +40,14 @@ function handleSelect(item: HeaderMenuItem) {
 
     <!-- 下拉卡片 -->
     <view
-      class="fixed-menu-card fixed left-3 z-[1002] w-100 overflow-hidden rounded-3 bg-card pb-4 shadow-lg"
+      class="fixed-menu-card fixed z-[1002] w-50 overflow-hidden rounded-3 bg-card pb-4 shadow-lg"
+      :class="props.side === 'right' ? 'fixed-menu-card--right right-3' : 'left-3'"
       :style="{ top: `${topOffset + 4}px` }"
     >
       <view
         v-for="(item, index) in menuItems"
         :key="item.key"
-        class="flex items-center px-4 py-2.5 text-3.5"
+        class="flex items-center justify-end px-4 py-2.5 text-3.5"
         :class="[
           index > 0 ? 'border-t border-line' : '',
           item.danger ? 'text-danger' : 'text-sub',
@@ -63,6 +68,15 @@ function handleSelect(item: HeaderMenuItem) {
   @media (min-width: 1024px) {
     left: 50%;
     transform: translateX(-372px);
+  }
+}
+
+// 右贴靠变体：卡片贴容器右边缘（-12px 导航栏 padding），供 simpleNav 布局使用
+.fixed-menu-card--right {
+  @media (min-width: 1024px) {
+    left: auto;
+    right: calc(50% - 372px);
+    transform: none;
   }
 }
 /* #endif */

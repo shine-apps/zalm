@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HeaderMenu from '@/components/header-menu/header-menu.vue'
 import type { HeaderMenuItem } from '@/components/header-menu/header-menu.vue'
 import { useAuthStore } from '@/store/auth'
 import { isPageTabbar } from '@/tabbar/store'
@@ -56,11 +57,11 @@ function closeMenu() {
 /** 菜单项：与 default 布局保持一致，游客不显示「退出登录」 */
 const menuItems = computed<HeaderMenuItem[]>(() => {
   const items: HeaderMenuItem[] = [
-    { key: 'home', label: '首页', icon: 'i-carbon-home' },
+    { key: 'home', label: '首 页 ', icon: 'i-carbon-home' },
     { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar' },
-    { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
+    { key: 'me', label: '我的主页', icon: 'i-carbon-star' },
     { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification' },
-    { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information' },
+    { key: 'about', label: '众爱联盟', icon: 'i-carbon-information' },
   ]
   if (auth.isLoggedIn)
     items.push({ key: 'logout', label: '退出登录', icon: 'i-carbon-logout', danger: true })
@@ -76,8 +77,8 @@ async function onMenuSelect(key: string) {
     case 'activities':
       uni.switchTab({ url: '/pages/activity/activity' })
       break
-    case 'favorites':
-      uni.showToast({ title: '功能开发中', icon: 'none' })
+    case 'me':
+      uni.switchTab({ url: '/pages/me/me' })
       break
     case 'notifications':
       uni.navigateTo({ url: '/pages/notification/index' })
@@ -123,29 +124,14 @@ async function onMenuSelect(key: string) {
       </view>
     </view>
 
-    <!-- 弹出菜单：右对齐下拉卡片 -->
-    <template v-if="menuOpen">
-      <!-- 透明遮罩：拦截点击关闭 -->
-      <view class="fixed inset-0 z-[1001]" @click="closeMenu" />
-      <view
-        class="simple-menu-card fixed right-3 z-[1002] w-100 overflow-hidden rounded-3 bg-card pb-4 shadow-lg"
-        :style="{ top: `${barTotalHeight + 4}px` }"
-      >
-        <view
-          v-for="(item, index) in menuItems"
-          :key="item.key"
-          class="flex items-center px-4 py-2.5 text-3.5"
-          :class="[
-            index > 0 ? 'border-t border-line' : '',
-            item.danger ? 'text-danger' : 'text-sub',
-          ]"
-          @click="onMenuSelect(item.key)"
-        >
-          <view :class="item.icon" class="text-4" />
-          <text class="ml-2">{{ item.label }}</text>
-        </view>
-      </view>
-    </template>
+    <!-- 弹出菜单：复用通用下拉菜单组件，右贴靠 -->
+    <HeaderMenu
+      v-model:show="menuOpen"
+      :top-offset="barTotalHeight"
+      :menu-items="menuItems"
+      side="right"
+      @select="onMenuSelect"
+    />
   </view>
 </template>
 
@@ -159,13 +145,6 @@ async function onMenuSelect(key: string) {
     left: 50%;
     right: auto;
     transform: translateX(-50%);
-  }
-}
-
-// 菜单卡片贴容器右边缘（-12px 导航栏 padding）
-.simple-menu-card {
-  @media (min-width: 1024px) {
-    right: calc(50% - 372px);
   }
 }
 /* #endif */

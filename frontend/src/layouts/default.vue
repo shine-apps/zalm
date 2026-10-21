@@ -88,14 +88,19 @@ function showComingSoon() {
   uni.showToast({ title: '功能开发中', icon: 'none' })
 }
 
-const menuItems: HeaderMenuItem[] = [
-  { key: 'home', label: '首页', icon: 'i-carbon-home' },
-  { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar' },
-  { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
-  { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification' },
-  { key: 'about', label: '关于众爱联盟', icon: 'i-carbon-information' },
-  { key: 'logout', label: '退出登录', icon: 'i-carbon-logout', danger: true },
-]
+/** 菜单项：与 simpleNav 布局保持一致，游客不显示「退出登录」 */
+const menuItems = computed<HeaderMenuItem[]>(() => {
+  const items: HeaderMenuItem[] = [
+    { key: 'home', label: '首 页 ', icon: 'i-carbon-home' },
+    { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar' },
+    { key: 'me', label: '我的主页', icon: 'i-carbon-star' },
+    { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification' },
+    { key: 'about', label: '众爱联盟', icon: 'i-carbon-information' },
+  ]
+  if (auth.isLoggedIn)
+    items.push({ key: 'logout', label: '退出登录', icon: 'i-carbon-logout', danger: true })
+  return items
+})
 
 async function onMenuSelect(key: string) {
   switch (key) {
@@ -105,8 +110,8 @@ async function onMenuSelect(key: string) {
     case 'activities':
       uni.switchTab({ url: '/pages/activity/activity' })
       break
-    case 'favorites':
-      uni.showToast({ title: '功能开发中', icon: 'none' })
+    case 'me':
+      uni.switchTab({ url: '/pages/me/me' })
       break
     case 'notifications':
       uni.navigateTo({ url: '/pages/notification/index' })

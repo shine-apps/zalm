@@ -1,11 +1,10 @@
 <script lang="ts" setup>
 import {
   getLeaderboard,
-  getMyPoints,
   getPointsFeed,
 
 } from '@/api/points'
-import type { LeaderboardRow, PointsDimension, PointsFeedItem, PointsOverview } from '@/api/points'
+import type { LeaderboardRow, PointsDimension, PointsFeedItem } from '@/api/points'
 import { resolveMediaUrl } from '@/api/profile'
 import { useShare } from '@/share/useShare'
 
@@ -19,7 +18,6 @@ const tabs: { label: string, value: PointsDimension }[] = [
   { label: '捐献榜', value: 'donation' },
 ]
 const dimension = ref<PointsDimension>('total')
-const overview = ref<PointsOverview>({ activityPoints: 0, donationPoints: 0, total: 0 })
 
 const ranks = ref<LeaderboardRow[]>([])
 const rankTotal = ref(0)
@@ -44,11 +42,8 @@ function scoreText(row: LeaderboardRow) {
   return `${row.total}`
 }
 
-async function loadOverview() {
-  try {
-    overview.value = await getMyPoints()
-  }
-  catch { /* 拦截器已提示 */ }
+function goLedger() {
+  uni.navigateTo({ url: '/pages/points/ledger' })
 }
 
 // 请求世代号：切维度时使在途旧请求失效，避免旧维度数据覆盖新 Tab
@@ -149,13 +144,12 @@ function moreFeed() {
 // —— 积分页分享（小程序右上角转发/朋友圈；H5 分享面板参数预留）——
 useShare(() => ({
   title: '众爱联盟公益积分榜 · 爱心看得见',
-  desc: `公益积分总榜实时更新，我已攒下 ${overview.value.total} 分，一起来做公益赢积分吧`,
+  desc: '公益积分总榜实时更新，快来看看谁的爱心值最高，一起来做公益赢积分吧',
   page: '/pages/points/index',
   targetType: 'points',
 }))
 
 onMounted(() => {
-  loadOverview()
   loadRanks(true)
   loadFeed(true)
 })
@@ -163,25 +157,15 @@ onMounted(() => {
 
 <template>
   <view class="min-h-screen bg-page px-3 pb-6 pt-3">
-    <!-- 我的积分卡 -->
-    <view class="rounded-3 bg-primary p-4 text-white shadow-sm">
-      <text class="text-4 opacity-90">我的积分</text>
-      <view class="mt-2 flex items-end">
-        <text class="text-9 font-semibold">{{ overview.total }}</text>
-        <text class="mb-1 ml-1 text-3.5 opacity-80">总分</text>
-      </view>
-      <view class="mt-3 flex text-3.5">
-        <view class="flex-1">
-          活动积分 <text class="font-semibold">{{ overview.activityPoints }}</text>
-        </view>
-        <view class="flex-1">
-          捐献积分 <text class="font-semibold">{{ overview.donationPoints }}</text>
-        </view>
-      </view>
-    </view>
+    <!-- 我的积分入口 -->
+    <!-- <view class="flex items-center rounded-3 bg-card px-4 py-3 shadow-sm" @click="goLedger">
+      <view class="i-carbon-receipt text-5 text-primary" />
+      <text class="ml-2 flex-1 text-4 text-ink">我的积分明细</text>
+      <view class="i-carbon-chevron-right text-4 text-muted" />
+    </view> -->
 
     <!-- 榜单维度切换 -->
-    <view class="mt-3 flex rounded-3 bg-card p-1 shadow-sm">
+    <view class="mt-6 flex rounded-3 bg-card p-1 shadow-sm">
       <view
         v-for="t in tabs" :key="t.value"
         class="flex-1 rounded-2 py-2 text-center text-4"
