@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { MyRegistrationItem } from '@/api/activity'
 import { listMyRegistrations } from '@/api/activity'
+import { followUser, unfollowUser } from '@/api/follow'
 import type { PointsOverview } from '@/api/points'
 import { getMyPoints } from '@/api/points'
 import type { PublicUserProfile } from '@/api/users'
@@ -9,6 +10,7 @@ import { resolveMediaUrl } from '@/api/profile'
 import { useShare } from '@/share/useShare'
 import { useAuthStore } from '@/store/auth'
 import { formatDate, formatTimeRange } from '@/utils/datetime'
+import { toLoginPage } from '@/utils/toLoginPage'
 
 definePage({
   style: {
@@ -47,6 +49,8 @@ const targetUserId = computed(() => {
 const profileUser = ref<PublicUserProfile | null>(null)
 const profileLoading = ref(false)
 const profileError = ref(false)
+const following = ref(false)
+const followActing = ref(false)
 
 async function loadProfile() {
   if (!targetUserId.value) {
@@ -58,12 +62,14 @@ async function loadProfile() {
   try {
     if (isOwnProfile.value && auth.user) {
       // 自己模式：直接用 store 已有数据，省一次请求
+      // 自己模式不展示关注按钮，isFollowed 恒为 false
       profileUser.value = {
         id: auth.user.id,
         name: auth.user.name,
         image: auth.user.image ?? null,
         createdAt: auth.user.createdAt,
         roles: auth.user.roles,
+        isFollowed: false,
       }
     }
     else {
@@ -75,7 +81,36 @@ async function loadProfile() {
     profileError.value = true
   }
   finally {
+    following.value = profileUser.value?.isFollowed ?? false
     profileLoading.value = false
+  }
+}
+
+/** 关注/取关他人：乐观更新，失败回滚；游客先引导登录。 */
+async function toggleFollow() {
+  const id = targetUserId.value
+  if (isOwnProfile.value || !id || followActing.value)
+    return
+  if (!auth.isLoggedIn) {
+    toLoginPage()
+    return
+  }
+  const next = !following.value
+  following.value = next
+  followActing.value = true
+  try {
+    const res = next
+      ? await followUser(id)
+      : await unfollowUser(id)
+    following.value = res.followed
+    uni.showToast({ title: res.followed ? '已关注' : '已取消关注', icon: 'none' })
+  }
+  catch {
+    // 回滚（错误 toast 由拦截器负责）
+    following.value = !next
+  }
+  finally {
+    followActing.value = false
   }
 }
 
@@ -245,11 +280,21 @@ const {
               </view>
             </view>
           </view>
-          <view
-            class="h-8 w-8 flex shrink-0 items-center justify-center rounded-full bg-hover text-muted"
-            @click="openShare"
-          >
-            <view class="i-carbon-share text-4" />
+          <view class="flex shrink-0 items-center">
+            <view
+              v-if="!isOwnProfile"
+              class="mr-2 h-8 flex items-center rounded-full px-3 text-3.5"
+              :class="following ? 'bg-hover text-sub' : 'bg-primary text-white'"
+              @click="toggleFollow"
+            >
+              {{ following ? '已关注' : '关注' }}
+            </view>
+            <view
+              class="h-8 w-8 flex items-center justify-center rounded-full bg-hover text-muted"
+              @click="openShare"
+            >
+              <view class="i-carbon-share text-4" />
+            </view>
           </view>
         </view>
 

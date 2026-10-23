@@ -116,7 +116,7 @@ export const activity = pgTable('activity', {
   capacity: integer('capacity'),
   // 签到成功可得的参与积分，0 表示该活动不计分（值域 0..9999，Zod 入口保证）
   points: integer('points').notNull().default(0),
-  status: text('status').notNull().default('published'),
+  status: text('status').$type<ActivityStatus>().notNull().default('published'),
   createdBy: text('created_by')
     .notNull()
     .references(() => user.id, { onDelete: 'restrict' }),
@@ -355,6 +355,37 @@ export const notification = pgTable(
     index('notification_user_unread_idx')
       .on(t.userId)
       .where(sql`${t.readAt} IS NULL`)
+  ]
+)
+
+// ===== 关注（单表多态收藏夹） =====
+
+/** 可关注的目标类型；值域由 TS 常量 + Zod 入参双层守住（DB 无枚举约束）。 */
+export const FOLLOW_TARGET_TYPES = ['activity', 'user'] as const
+export type FollowTargetType = (typeof FOLLOW_TARGET_TYPES)[number]
+
+/**
+ * 关注关系（仅收藏夹语义：无粉丝数、无通知、无 feed）。
+ * - user_id 为关注者，挂真实外键：用户注销 → 其关注自动清理；
+ * - target_id 多态无外键：活动被删/目标用户注销产生的孤儿记录，
+ *   由列表查询 inner join 目标表自然过滤，不做异步清理任务。
+ */
+export const follow = pgTable(
+  'follow',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    targetType: text('target_type').$type<FollowTargetType>().notNull(),
+    targetId: text('target_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow()
+  },
+  t => [
+    unique('follow_user_target_unique').on(t.userId, t.targetType, t.targetId),
+    index('follow_user_type_idx').on(t.userId, t.targetType)
   ]
 )
 

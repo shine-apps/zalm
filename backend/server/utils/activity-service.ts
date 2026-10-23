@@ -31,6 +31,7 @@ import {
   updateActivityMediaDescription
 } from '../database/repositories/activity-media'
 import { adjustRefCount, getMediaFileById } from '../database/repositories/media'
+import { isFollowing } from '../database/repositories/follows'
 import { getCurrentCheckinCode, verifyCheckinCode } from './checkin-code'
 import { awardCheckinPoints } from './points-service'
 import { toActivityMediaView, type ActivityMediaItemView } from './activity-media'
@@ -68,7 +69,9 @@ export function toActivityView(
   stat: { registeredCount: number, checkedInCount: number },
   now: Date,
   myRegistration: RegistrationRow | null,
-  media: ActivityMediaItemView[] = []
+  media: ActivityMediaItemView[] = [],
+  // 关注状态位：仅 getActivityDetail 传入真实值；列表/首页/我的报名等调用点不传，恒为 false
+  isFollowed = false
 ) {
   return {
     id: activity.id,
@@ -91,7 +94,8 @@ export function toActivityView(
     checkedInCount: stat.checkedInCount,
     remaining: remaining(activity.capacity, stat.registeredCount),
     myRegistration,
-    media
+    media,
+    isFollowed
   }
 }
 
@@ -130,12 +134,13 @@ export async function getActivityDetail(
   now: Date = new Date()
 ) {
   const activity = await requireActivity(id)
-  const [stat, mediaRows] = await Promise.all([
+  const [stat, mediaRows, isFollowed] = await Promise.all([
     getActivityStat(id),
-    listActivityMedia(id)
+    listActivityMedia(id),
+    viewerId ? isFollowing(viewerId, 'activity', id) : Promise.resolve(false)
   ])
   const myRegistration = viewerId ? await getRegistration(id, viewerId) : null
-  return toActivityView(activity, stat, now, myRegistration, mediaRows.map(toActivityMediaView))
+  return toActivityView(activity, stat, now, myRegistration, mediaRows.map(toActivityMediaView), isFollowed)
 }
 
 // ===== 组织者写操作 =====

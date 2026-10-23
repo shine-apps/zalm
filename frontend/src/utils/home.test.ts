@@ -32,6 +32,7 @@ function activity(over: Partial<ActivityView> = {}): ActivityView {
     remaining: 18,
     myRegistration: null,
     media: [],
+    isFollowed: false,
     ...over,
   }
 }

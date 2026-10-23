@@ -15,6 +15,8 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8).optional(),
   RATE_LIMIT_GLOBAL_MAX: z.coerce.number().int().positive().default(300),
   RATE_LIMIT_SENSITIVE_MAX: z.coerce.number().int().positive().default(10),
+  // 关注/取关写操作（POST/DELETE /api/{activities|users}/:id/follow）
+  RATE_LIMIT_FOLLOW_MAX: z.coerce.number().int().positive().default(30),
   // 公开埋点上报（POST /api/share/events）：游客可报，配额严于全局以防刷库
   RATE_LIMIT_ANALYTICS_MAX: z.coerce.number().int().positive().default(30),
   // 微信小程序「获取手机号」：非 mock 模式下调用微信 API 时必须提供

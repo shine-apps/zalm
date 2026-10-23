@@ -2,13 +2,15 @@ import type { MyRegistrationItem } from './activity'
 import type { PaginationMeta, PointsOverview } from './points'
 import { http } from '@/http/alova'
 
-/** 公开用户资料（隐私安全字段：id, name, image, createdAt, roles）。 */
+/** 公开用户资料（隐私安全字段：id, name, image, createdAt, roles, isFollowed）。 */
 export interface PublicUserProfile {
   id: string
   name: string
   image: string | null
   createdAt: string
   roles: string[]
+  /** 当前查看者是否已关注该用户（游客恒为 false）。 */
+  isFollowed: boolean
 }
 
 export interface Paged<T> {

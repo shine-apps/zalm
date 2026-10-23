@@ -7,6 +7,7 @@ import {
   registerToActivity,
 } from '@/api/activity'
 import { createTemplateFromActivity } from '@/api/activity-template'
+import { followActivity, unfollowActivity } from '@/api/follow'
 import { resolveMediaUrl } from '@/api/profile'
 import { useShare } from '@/share/useShare'
 import { useAuthStore } from '@/store/auth'
@@ -25,6 +26,8 @@ const activityId = ref('')
 const detail = ref<ActivityView | null>(null)
 const loading = ref(false)
 const acting = ref(false)
+const following = ref(false)
+const followActing = ref(false)
 
 const myReg = computed(() => detail.value?.myRegistration ?? null)
 const isCancelled = computed(() => detail.value?.state === 'cancelled')
@@ -76,6 +79,7 @@ async function load() {
   loading.value = true
   try {
     detail.value = await getActivity(activityId.value)
+    following.value = detail.value.isFollowed
   }
   finally {
     loading.value = false
@@ -87,6 +91,34 @@ function ensureLogin(): boolean {
     return true
   toLoginPage()
   return false
+}
+
+/** 关注/取关：乐观更新，失败回滚；游客先引导登录。 */
+async function toggleFollow() {
+  const current = detail.value
+  if (!current || followActing.value)
+    return
+  if (!ensureLogin())
+    return
+  const next = !following.value
+  following.value = next
+  followActing.value = true
+  try {
+    const res = next
+      ? await followActivity(current.id)
+      : await unfollowActivity(current.id)
+    following.value = res.followed
+    current.isFollowed = res.followed
+    uni.showToast({ title: res.followed ? '已关注' : '已取消关注', icon: 'none' })
+  }
+  catch {
+    // 回滚（错误 toast 由拦截器负责）
+    following.value = !next
+    current.isFollowed = !next
+  }
+  finally {
+    followActing.value = false
+  }
 }
 
 /** 昵称缺失/为手机号格式（OTP 自动注册场景）时需先完善资料。 */
@@ -463,7 +495,7 @@ onUnload(() => {
 
           <view
             v-if="detail.registeredCount > 0"
-            class="text-primary-soft-text mt-3 flex items-center text-3.5 justify-end"
+            class="text-primary-soft-text mt-3 flex items-center justify-end text-3.5"
             @click="goRegistrations"
           >
             <text>查看报名名单 &gt;</text>
@@ -585,6 +617,18 @@ onUnload(() => {
       >
         <view class="i-carbon-share text-18px" />
         <text class="mt-0.5 text-2.5">分享</text>
+      </view>
+
+      <!-- 关注入口（游客点击引导登录） -->
+      <view
+        class="mr-2 h-44px w-44px flex shrink-0 flex-col items-center justify-center border rounded-2"
+        :class="following
+          ? 'border-primary bg-primary-soft text-primary-soft-text'
+          : 'border-line-strong text-sub'"
+        @click="toggleFollow"
+      >
+        <view class="text-18px" :class="following ? 'i-carbon-star-filled' : 'i-carbon-star'" />
+        <text class="mt-0.5 text-2.5">{{ following ? '已关注' : '关注' }}</text>
       </view>
 
       <!-- 游客 -->

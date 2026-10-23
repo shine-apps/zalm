@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getRateLimitTier, isAnalyticsEndpoint, isSensitiveEndpoint } from './rate-limit'
+import { getRateLimitTier, isAnalyticsEndpoint, isFollowEndpoint, isSensitiveEndpoint } from './rate-limit'
 
 describe('isAnalyticsEndpoint', () => {
   it('classifies only POST /api/share/events as analytics', () => {
@@ -11,6 +11,23 @@ describe('isAnalyticsEndpoint', () => {
     expect(isAnalyticsEndpoint('/api/share/wx-config', 'GET')).toBe(false)
     expect(isAnalyticsEndpoint('/api/share/eventsx', 'POST')).toBe(false)
     expect(isAnalyticsEndpoint('/api/share', 'POST')).toBe(false)
+  })
+})
+
+describe('isFollowEndpoint', () => {
+  it('classifies follow writes on activities and users', () => {
+    expect(isFollowEndpoint('/api/activities/abc/follow', 'POST')).toBe(true)
+    expect(isFollowEndpoint('/api/activities/abc/follow', 'DELETE')).toBe(true)
+    expect(isFollowEndpoint('/api/users/u1/follow', 'POST')).toBe(true)
+    expect(isFollowEndpoint('/api/users/u1/follow', 'DELETE')).toBe(true)
+  })
+
+  it('ignores reads and sibling paths', () => {
+    expect(isFollowEndpoint('/api/activities/abc/follow', 'GET')).toBe(false)
+    expect(isFollowEndpoint('/api/follows', 'GET')).toBe(false)
+    expect(isFollowEndpoint('/api/activities/abc/followers', 'POST')).toBe(false)
+    expect(isFollowEndpoint('/api/users/u1/follow/x', 'POST')).toBe(false)
+    expect(isFollowEndpoint('/api/users/u1/points', 'POST')).toBe(false)
   })
 })
 
@@ -48,5 +65,11 @@ describe('getRateLimitTier', () => {
     // 当前没有重叠路径，此用例锁定优先级语义，避免未来新增端点时意外降级
     expect(isSensitiveEndpoint('/api/share/events', 'POST')).toBe(false)
     expect(getRateLimitTier('/api/share/events', 'POST')).toBe('analytics')
+  })
+
+  it('routes follow writes to the follow tier', () => {
+    expect(getRateLimitTier('/api/activities/abc/follow', 'POST')).toBe('follow')
+    expect(getRateLimitTier('/api/users/u1/follow', 'DELETE')).toBe('follow')
+    expect(getRateLimitTier('/api/follows', 'GET')).toBe('global')
   })
 })

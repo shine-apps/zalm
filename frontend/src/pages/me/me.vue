@@ -13,7 +13,7 @@ import { maskPhoneNumber } from '@/utils/phone'
 import { toLoginPage } from '@/utils/toLoginPage'
 
 // 菜单图标经数据动态绑定，需在此注释占位，确保 UnoCSS 扫描生成对应样式：
-// i-carbon-calendar i-carbon-star i-carbon-notification i-carbon-trophy i-carbon-receipt
+// i-carbon-calendar i-carbon-star i-carbon-star-filled i-carbon-user-follow i-carbon-notification i-carbon-trophy i-carbon-receipt
 // i-carbon-security i-carbon-locked i-carbon-chat i-carbon-information
 // i-carbon-contrast i-carbon-color-palette i-carbon-cdi
 
@@ -104,7 +104,7 @@ const menuGroups = computed<MeMenuItem[][]>(() => {
     { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', url: '/pages/activity/mine' },
     { key: 'points-rank', label: '积分排行', icon: 'i-carbon-trophy', url: '/pages/points/index' },
     { key: 'points-ledger', label: '我的积分明细', icon: 'i-carbon-receipt', url: '/pages/points/ledger' },
-    { key: 'favorites', label: '我的收藏', icon: 'i-carbon-star' },
+    { key: 'follows', label: '我的关注', icon: 'i-carbon-user-follow', url: '/pages/follow/index' },
     { key: 'notifications', label: '消息通知', icon: 'i-carbon-notification', url: '/pages/notification/index', dot: notifStore.hasUnread },
   ]
   if (auth.isAdmin) {

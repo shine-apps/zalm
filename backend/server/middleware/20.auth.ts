@@ -14,11 +14,16 @@ import { isPublicRequest } from '../utils/path'
 /**
  * 公开但希望感知登录态的路径：
  * - /api/activities/**：公开 GET 附带 myRegistration；
+ * - /api/users/**：公开用户主页附带 isFollowed；
  * - POST /api/share/events：游客可上报埋点，登录时记录 actorUserId。
  * 不查角色、不做封禁/登录拦截，会话无效时静默跳过。
  */
 function isSoftSessionPath(pathname: string, method: string): boolean {
   if (pathname === '/api/activities' || pathname.startsWith('/api/activities/')) {
+    return true
+  }
+  // 用户主页公开可读，登录者需拿到 isFollowed
+  if (pathname.startsWith('/api/users/')) {
     return true
   }
   return method.toUpperCase() === 'POST' && pathname === '/api/share/events'

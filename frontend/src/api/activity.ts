@@ -54,7 +54,7 @@ export interface ActivityMediaItem {
   createdAt: string
 }
 
-/** 活动详情/列表项（后端 toActivityView）。列表与详情同构，游客 myRegistration=null。 */
+/** 活动详情/列表项（后端 toActivityView）。列表与详情同构，游客 myRegistration=null、isFollowed=false。 */
 export interface ActivityView {
   id: string
   title: string
@@ -77,6 +77,8 @@ export interface ActivityView {
   remaining: number | null
   myRegistration: RegistrationRow | null
   media: ActivityMediaItem[]
+  /** 当前查看者是否已关注（游客恒为 false）。 */
+  isFollowed: boolean
 }
 
 /** 组织者名单行（join 用户摘要，含完整手机号）。 */

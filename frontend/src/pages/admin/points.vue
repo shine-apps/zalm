@@ -465,12 +465,12 @@ async function submitReverse() {
           <view class="mt-3">
             <text class="text-3.5 text-muted">备注（金额/物资名称等，仅后台与本人可见）</text>
             <view class="mt-1 overflow-hidden border border-line-strong rounded-2 border-solid">
-              <wd-textarea auto-height v-model="form.note" :maxlength="200" show-word-limit />
+              <wd-textarea v-model="form.note" auto-height :maxlength="200" show-word-limit />
             </view>
           </view>
 
           <view class="mt-3 flex items-center py-1" @click="datePickerShow = true">
-            <text class="text-3.5 text-muted flex-1">录入时间</text>
+            <text class="flex-1 text-3.5 text-muted">录入时间</text>
             <text class="text-4 text-ink">{{ formatTime(new Date(createdAtTs).toISOString()) }}</text>
             <view class="i-carbon-chevron-right ml-2 text-4 text-muted" />
           </view>

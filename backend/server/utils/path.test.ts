@@ -106,4 +106,16 @@ describe('isPublicRequest', () => {
     expect(isPublicRequest('/api/points/me/ledger', 'GET')).toBe(false)
     expect(isPublicRequest('/api/points/leaderboard', 'GET')).toBe(false)
   })
+
+  it('allows guest GET on the public user profile', () => {
+    expect(isPublicRequest('/api/users/u1', 'GET')).toBe(true)
+  })
+
+  it('keeps follow endpoints authenticated', () => {
+    expect(isPublicRequest('/api/users/u1/follow', 'POST')).toBe(false)
+    expect(isPublicRequest('/api/users/u1/follow', 'DELETE')).toBe(false)
+    expect(isPublicRequest('/api/activities/x/follow', 'POST')).toBe(false)
+    expect(isPublicRequest('/api/activities/x/follow', 'DELETE')).toBe(false)
+    expect(isPublicRequest('/api/follows', 'GET')).toBe(false)
+  })
 })

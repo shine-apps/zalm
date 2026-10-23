@@ -2,6 +2,7 @@
  * 进程内固定窗口限流（按 IP key，窗口 60s）。
  * - 全局 /api/**：RATE_LIMIT_GLOBAL_MAX（默认 300）
  * - 敏感端点（登录/注册/发 OTP/管理员创建用户）：RATE_LIMIT_SENSITIVE_MAX（默认 10）
+ * - 关注/取关（POST/DELETE .../follow）：RATE_LIMIT_FOLLOW_MAX（默认 30）
  * - 公开埋点（POST /api/share/events）：RATE_LIMIT_ANALYTICS_MAX（默认 30）
  * 后续如需分布式限流，可替换为 Redis 实现而不改调用方。
  */
@@ -43,6 +44,7 @@ export default defineEventHandler((event) => {
   const tier = getRateLimitTier(pathname, event.method)
   const maxByTier = {
     sensitive: env.RATE_LIMIT_SENSITIVE_MAX,
+    follow: env.RATE_LIMIT_FOLLOW_MAX,
     analytics: env.RATE_LIMIT_ANALYTICS_MAX,
     global: env.RATE_LIMIT_GLOBAL_MAX
   } as const

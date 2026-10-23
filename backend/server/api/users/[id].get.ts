@@ -1,10 +1,11 @@
+import { isFollowing } from '../../database/repositories/follows'
 import { getUserById } from '../../database/repositories/users'
 import { getUserRoleNames } from '../../utils/auth'
 
 /**
  * 公开用户资料（隐私安全白名单字段）。
  * 不含 email/phone/banned 等敏感字段；已封禁用户对游客不可见（返回 404），
- * 登录者若查看自己仍会展示完整资料走 /me 端点，不走这里。
+ * 游客 isFollowed 恒为 false，登录者附带与查看者的关注关系。
  */
 export default defineEventHandler(async (event) => {
   const id = getRouterParam(event, 'id')
@@ -15,13 +16,18 @@ export default defineEventHandler(async (event) => {
   if (!user || user.banned)
     throw createApiError('NOT_FOUND', { message: '用户不存在' })
 
-  const roles = await getUserRoleNames(user.id).catch(() => [])
+  const viewer = getAuthUser(event)
+  const [roles, isFollowed] = await Promise.all([
+    getUserRoleNames(user.id).catch(() => []),
+    viewer ? isFollowing(viewer.id, 'user', user.id) : Promise.resolve(false)
+  ])
 
   return ok({
     id: user.id,
     name: user.name,
     image: user.image,
     createdAt: user.createdAt,
-    roles
+    roles,
+    isFollowed
   })
 })
