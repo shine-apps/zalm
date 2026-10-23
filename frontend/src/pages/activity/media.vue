@@ -16,6 +16,12 @@ const auth = useAuthStore()
 const activityId = ref('')
 const media = ref<ActivityMediaItem[]>([])
 const loading = ref(false)
+/** 是否为已签到的活动参与者，可上传但不能管理他人内容。 */
+const isParticipant = ref(false)
+
+/** 组织者可上传并管理相册；参与者仅可上传。 */
+const canManage = computed(() => auth.canManageActivity)
+const canUpload = computed(() => canManage.value || isParticipant.value)
 
 const albumUploader = ref<{ trigger: () => void, reset: () => void } | null>(null)
 
@@ -29,6 +35,11 @@ async function load() {
   try {
     const a = await getActivity(activityId.value)
     media.value = a.media
+    isParticipant.value = a.myRegistration?.status === 'checked_in'
+    if (!canUpload.value) {
+      uni.showToast({ title: '仅活动组织者和已签到参与者可上传相册', icon: 'none' })
+      setTimeout(() => uni.navigateBack(), 800)
+    }
   }
   catch {
     // 拦截器已提示
@@ -138,8 +149,8 @@ async function doRemove(item: ActivityMediaItem) {
 }
 
 onLoad((options) => {
-  if (!auth.canManageActivity) {
-    uni.showToast({ title: '没有管理活动的权限', icon: 'none' })
+  if (!auth.isLoggedIn) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
     toLoginPage({ mode: 'reLaunch', redirect: null })
     return
   }
@@ -212,6 +223,7 @@ onLoad((options) => {
             {{ item.type === 'video' ? '视频' : '图片' }}
           </text>
           <view
+            v-if="canManage"
             class="absolute right-2 top-2 h-7 w-7 flex items-center justify-center rounded-full bg-black/50"
             @click="confirmRemove(item)"
           >
@@ -227,6 +239,7 @@ onLoad((options) => {
             {{ item.description || '未添加描述' }}
           </text>
           <view
+            v-if="canManage"
             class="text-primary-soft-text flex shrink-0 items-center rounded-full bg-primary-soft px-2.5 py-0.5 text-3"
             @click="openDescEditor(item)"
           >

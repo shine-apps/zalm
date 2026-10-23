@@ -27,8 +27,8 @@ const form = ref({
   categories: [] as ActivityCategory[],
   startTs: 0,
   endTs: 0,
-  hasDeadline: false,
-  deadlineTs: 0,
+  /** 报名截止 = 活动开始前多少分钟（0 表示活动开始时截止）。 */
+  deadlineMinutesText: '0',
   capacityText: '',
   pointsText: '0',
   location: {
@@ -41,13 +41,17 @@ const form = ref({
 
 const startPicker = ref<DatetimePickerInstance | null>(null)
 const endPicker = ref<DatetimePickerInstance | null>(null)
-const deadlinePicker = ref<DatetimePickerInstance | null>(null)
 
 function nextHourTs(): number {
   const d = new Date()
   d.setMinutes(0, 0, 0)
   d.setHours(d.getHours() + 1)
   return d.getTime()
+}
+
+/** 报名截止时刻 → 相对活动开始时间提前的分钟数（下限 0）。 */
+function deadlineToMinutes(startTs: number, deadlineTs: number): number {
+  return Math.max(0, Math.round((startTs - deadlineTs) / 60_000))
 }
 
 onLoad((options) => {
@@ -59,7 +63,7 @@ onLoad((options) => {
   const start = nextHourTs()
   form.value.startTs = start
   form.value.endTs = start + 2 * 3600_000
-  form.value.deadlineTs = start
+  form.value.deadlineMinutesText = '0'
   if (options?.id) {
     editingId.value = options.id
     uni.setNavigationBarTitle({ title: '编辑活动' })
@@ -162,9 +166,10 @@ function mergeTemplateIntoForm(t: ActivityTemplate) {
     form.value.startTs = new Date(t.startTime).getTime()
   if (t.endTime)
     form.value.endTs = new Date(t.endTime).getTime()
-  if (t.registerDeadline) {
-    form.value.hasDeadline = true
-    form.value.deadlineTs = new Date(t.registerDeadline).getTime()
+  if (t.registerDeadline && t.startTime) {
+    form.value.deadlineMinutesText = String(
+      deadlineToMinutes(form.value.startTs, new Date(t.registerDeadline).getTime()),
+    )
   }
   form.value.capacityText = t.capacity === null ? '' : String(t.capacity)
   if (t.points !== null)
@@ -180,10 +185,9 @@ async function prefill(id: string) {
     form.value.categories = [...a.categories]
     form.value.startTs = new Date(a.startTime).getTime()
     form.value.endTs = new Date(a.endTime).getTime()
-    form.value.hasDeadline = !!a.registerDeadline
-    form.value.deadlineTs = a.registerDeadline
-      ? new Date(a.registerDeadline).getTime()
-      : form.value.startTs
+    form.value.deadlineMinutesText = a.registerDeadline
+      ? String(deadlineToMinutes(form.value.startTs, new Date(a.registerDeadline).getTime()))
+      : '0'
     form.value.capacityText = a.capacity === null ? '' : String(a.capacity)
     form.value.pointsText = String(a.points ?? 0)
     form.value.location = { ...a.location }
@@ -236,13 +240,15 @@ function onStartPick({ value }: { value: string | number | Array<string | number
 function onEndPick({ value }: { value: string | number | Array<string | number> }) {
   form.value.endTs = Number(value)
 }
-function onDeadlinePick({ value }: { value: string | number | Array<string | number> }) {
-  form.value.deadlineTs = Number(value)
+
+/** 报名截止分钟数（留空按 0 处理）。 */
+function deadlineMinutes(): number {
+  const raw = form.value.deadlineMinutesText.trim()
+  return raw === '' ? 0 : Number(raw)
 }
 
-function onDeadlineToggle(e: { detail: { value: boolean } }) {
-  form.value.hasDeadline = e.detail.value
-}
+/** 报名截止时刻 = 活动开始时间 - 提前分钟数（0 分钟即开始时刻截止）。 */
+const deadlineTs = computed(() => form.value.startTs - deadlineMinutes() * 60_000)
 
 // —— 位置 ——
 async function chooseOnMap() {
@@ -270,8 +276,9 @@ function validate(): string | null {
     return '请选择活动开始与结束时间'
   if (f.endTs <= f.startTs)
     return '结束时间必须晚于开始时间'
-  if (f.hasDeadline && f.deadlineTs > f.startTs)
-    return '报名截止时间不能晚于活动开始时间'
+  const deadlineMin = deadlineMinutes()
+  if (!Number.isInteger(deadlineMin) || deadlineMin < 0 || deadlineMin > 43200)
+    return '报名截止需为 0~43200 分钟（活动开始前）'
   if (f.capacityText.trim() !== '') {
     const cap = Number(f.capacityText)
     if (!Number.isInteger(cap) || cap < 1 || cap > 99999)
@@ -305,7 +312,7 @@ function buildPayload(): ActivityPayload {
     categories: [...f.categories],
     startTime: new Date(f.startTs).toISOString(),
     endTime: new Date(f.endTs).toISOString(),
-    registerDeadline: f.hasDeadline ? new Date(f.deadlineTs).toISOString() : null,
+    registerDeadline: new Date(deadlineTs.value).toISOString(),
     capacity: f.capacityText.trim() === '' ? null : Number(f.capacityText),
     points,
   }
@@ -469,22 +476,18 @@ async function onSubmit() {
         <view class="i-carbon-chevron-right ml-2 text-4 text-muted" />
       </view>
       <view class="flex items-center border-t border-line px-4 py-3.5">
-        <text class="text-4 text-sub">报名截止</text>
-        <switch
-          :checked="form.hasDeadline"
-          color="#d14328"
-          class="ml-auto"
-          @change="onDeadlineToggle"
-        />
-      </view>
-      <view
-        v-if="form.hasDeadline"
-        class="flex items-center border-t border-line px-4 py-3.5"
-        @click="deadlinePicker?.open()"
-      >
-        <text class="text-4 text-sub">截止时间</text>
-        <text class="ml-auto text-4 text-ink">{{ formatDateTime(form.deadlineTs) }}</text>
-        <view class="i-carbon-chevron-right ml-2 text-4 text-muted" />
+        <view class="min-w-0 flex-1">
+          <text class="block text-4 text-sub">报名截止</text>
+     
+        </view>
+        <text class="ml-1 text-4 text-sub">活动开始前</text>
+        <input
+          v-model="form.deadlineMinutesText"
+          type="number"
+          placeholder="0"
+          class="ml-3 h-32px w-50px rounded-2 bg-hover px-3 text-right text-4 text-ink"
+        >
+        <text class="ml-1 text-4 text-sub">分钟</text>
       </view>
       <view class="flex items-center border-t border-line px-4 py-3.5">
         <text class="text-4 text-sub">人数上限</text>
@@ -565,7 +568,7 @@ async function onSubmit() {
       {{ editingId ? '保存修改' : '发布活动' }}
     </button>
 
-    <!-- 三个弹出式时间选择器 -->
+    <!-- 两个弹出式时间选择器 -->
     <wd-datetime-picker
       ref="startPicker"
       v-model="form.startTs"
@@ -579,14 +582,6 @@ async function onSubmit() {
       type="datetime"
       title="选择结束时间"
       @confirm="onEndPick"
-    />
-    <wd-datetime-picker
-      v-if="form.hasDeadline"
-      ref="deadlinePicker"
-      v-model="form.deadlineTs"
-      type="datetime"
-      title="选择报名截止时间"
-      @confirm="onDeadlinePick"
     />
 
     <!-- 活动模板选择面板（仅新建模式） -->

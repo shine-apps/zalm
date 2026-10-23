@@ -437,7 +437,15 @@ export async function listMineView(userId: string, page: number, pageSize: numbe
   return { data, total }
 }
 
-// ===== 相册（组织者写操作） =====
+// ===== 相册（组织者与已签到参与者写操作） =====
+
+/** 参与者上传相册权限：必须已签到，否则 403。 */
+export async function requireActivityCheckedIn(activityId: string, userId: string) {
+  const reg = await getRegistration(activityId, userId)
+  if (!reg || reg.status !== 'checked_in') {
+    throw createApiError('FORBIDDEN', { message: '仅已签到的活动参与者可上传相册内容' })
+  }
+}
 
 export async function bindActivityMedia(activityId: string, input: ActivityMediaBindBody) {
   await requireActivity(activityId)

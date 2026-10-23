@@ -54,6 +54,11 @@ const canCancelReg = computed(() =>
   && now.value < new Date(detail.value.startTime).getTime(),
 )
 
+/** 相册上传：组织者或已签到的参与者（仅控 UI，最终以后端鉴权为准）。 */
+const canUploadMedia = computed(() =>
+  auth.canManageActivity || myReg.value?.status === 'checked_in',
+)
+
 /** 分享标题后的活动状态标签；依赖 now，报名截止后自动切换。 */
 const shareStateLabel = computed(() => {
   const a = detail.value
@@ -508,6 +513,20 @@ onUnload(() => {
           <text class="mt-2 block whitespace-pre-wrap text-3.5 text-sub leading-6">
             {{ detail.description }}
           </text>
+        </view>
+
+        <!-- 参与者上传入口 -->
+        <view
+          v-if="canUploadMedia && !auth.canManageActivity"
+          class="mt-3 flex items-center rounded-3 bg-card p-4 shadow-sm"
+          @click="goMedia"
+        >
+          <view class="text-primary-soft-text i-carbon-cloud-upload text-18px" />
+          <view class="ml-2 flex-1">
+            <text class="block text-4 text-ink font-medium">上传活动照片</text>
+            <text class="mt-0.5 block text-3 text-muted">与大家分享现场照片或视频</text>
+          </view>
+          <view class="i-carbon-chevron-right text-16px text-muted" />
         </view>
 
         <!-- 组织者区 -->
