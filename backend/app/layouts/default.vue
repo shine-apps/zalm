@@ -17,6 +17,7 @@ const navItems = computed<NavItem[]>(() => [
   { label: '用户管理', to: '/admin/users', icon: 'i-lucide-users' as unknown as Component, adminOnly: true },
   { label: '活动管理', to: '/admin/activities', icon: 'i-lucide-calendar-days' as unknown as Component, adminOnly: true },
   { label: '活动模板', to: '/admin/activity-templates', icon: 'i-lucide-layout-template' as unknown as Component, adminOnly: true },
+  { label: '认证审核', to: '/admin/verifications', icon: 'i-lucide-badge-check' as unknown as Component, adminOnly: true },
   { label: '积分管理', to: '/admin/points', icon: 'i-lucide-trophy' as unknown as Component, adminOnly: true },
   { label: '角色管理', to: '/admin/roles', icon: 'i-lucide-shield-check' as unknown as Component, adminOnly: true },
   { label: '媒体管理', to: '/admin/media', icon: 'i-lucide-images' as unknown as Component, adminOnly: true },

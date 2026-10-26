@@ -111,6 +111,11 @@ describe('isPublicRequest', () => {
     expect(isPublicRequest('/api/users/u1', 'GET')).toBe(true)
   })
 
+  it('allows guest GET on public verification info but not writes', () => {
+    expect(isPublicRequest('/api/users/u1/verification', 'GET')).toBe(true)
+    expect(isPublicRequest('/api/users/u1/verification', 'POST')).toBe(false)
+  })
+
   it('keeps follow endpoints authenticated', () => {
     expect(isPublicRequest('/api/users/u1/follow', 'POST')).toBe(false)
     expect(isPublicRequest('/api/users/u1/follow', 'DELETE')).toBe(false)

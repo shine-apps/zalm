@@ -478,7 +478,6 @@ async function onSubmit() {
       <view class="flex items-center border-t border-line px-4 py-3.5">
         <view class="min-w-0 flex-1">
           <text class="block text-4 text-sub">报名截止</text>
-     
         </view>
         <text class="ml-1 text-4 text-sub">活动开始前</text>
         <input

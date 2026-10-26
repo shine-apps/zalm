@@ -106,6 +106,10 @@ describe('parseObjectKey', () => {
       .toEqual({ type: 'video', scope: 'activity', id: UUID, ext: 'mp4' })
     expect(parseObjectKey(`images/avatar/${UUID}`))
       .toEqual({ type: 'image', scope: 'avatar', id: UUID, ext: null })
+    expect(parseObjectKey(`images/verification/${UUID}.png`))
+      .toEqual({ type: 'image', scope: 'verification', id: UUID, ext: 'png' })
+    expect(parseObjectKey(`videos/verification/${UUID}.mp4`))
+      .toEqual({ type: 'video', scope: 'verification', id: UUID, ext: 'mp4' })
   })
 
   it('rejects path traversal and forged keys', () => {

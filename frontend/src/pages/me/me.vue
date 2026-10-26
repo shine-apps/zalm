@@ -15,7 +15,7 @@ import { toLoginPage } from '@/utils/toLoginPage'
 // 菜单图标经数据动态绑定，需在此注释占位，确保 UnoCSS 扫描生成对应样式：
 // i-carbon-calendar i-carbon-star i-carbon-star-filled i-carbon-user-follow i-carbon-notification i-carbon-trophy i-carbon-receipt
 // i-carbon-security i-carbon-locked i-carbon-chat i-carbon-information
-// i-carbon-contrast i-carbon-color-palette i-carbon-cdi
+// i-carbon-contrast i-carbon-color-palette i-carbon-cdi i-carbon-identification i-carbon-certificate-check
 
 definePage({
   style: {
@@ -101,6 +101,7 @@ function pickThemeBrand() {
 const menuGroups = computed<MeMenuItem[][]>(() => {
   const firstGroup: MeMenuItem[] = [
     { key: 'user-home', label: '个人主页', icon: 'i-carbon-user-avatar', url: '/pages/user-home/index' },
+    { key: 'verification', label: '实名认证', icon: 'i-carbon-identification', url: '/pages/me/verification/index' },
     { key: 'activities', label: '活动报名', icon: 'i-carbon-calendar', url: '/pages/activity/mine' },
     { key: 'points-rank', label: '积分排行', icon: 'i-carbon-trophy', url: '/pages/points/index' },
     { key: 'points-ledger', label: '我的积分明细', icon: 'i-carbon-receipt', url: '/pages/points/ledger' },
@@ -113,6 +114,12 @@ const menuGroups = computed<MeMenuItem[][]>(() => {
       label: '积分管理',
       icon: 'i-carbon-cdi',
       url: '/pages/admin/points',
+    })
+    firstGroup.push({
+      key: 'admin-verifications',
+      label: '认证审核',
+      icon: 'i-carbon-certificate-check',
+      url: '/pages/admin/verifications',
     })
   }
   return [

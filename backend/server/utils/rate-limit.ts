@@ -23,6 +23,9 @@ export function isSensitiveEndpoint(pathname: string, method: string): boolean {
     || (method === 'POST'
       && /^\/api\/admin\/activities\/[^/]+\/manual-check-in$/.test(pathname))
     || (method === 'GET' && /^\/api\/activities\/[^/]+\/check-in-code$/.test(pathname))
+    || (method === 'POST' && pathname === '/api/verification/ocr')
+    // 提交认证：写库 + 逐条媒体校验，驳回可重提，防脚本刷审核队列
+    || (method === 'POST' && pathname === '/api/verification')
   )
 }
 

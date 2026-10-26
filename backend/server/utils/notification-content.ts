@@ -1,7 +1,8 @@
 import type {
   ActivityLocation,
   NotificationTargetType,
-  NotificationType
+  NotificationType,
+  VerificationKind
 } from '../database/schema'
 import type { ActivityUpdateBody } from '../schemas/activity'
 
@@ -10,14 +11,14 @@ import type { ActivityUpdateBody } from '../schemas/activity'
  * 业务事件 → NotificationDraft[]（一人一条）；投递由 notifications-service 负责。
  */
 
-/** 一条待投递的站内通知（target 本期恒为活动；非活动类系统消息以后再放开可空）。 */
+/** 一条待投递的站内通知（target 可为空：认证审核等系统消息没有跳转对象）。 */
 export interface NotificationDraft {
   userId: string
   type: NotificationType
   title: string
   body: string
-  targetType: NotificationTargetType
-  targetId: string
+  targetType: NotificationTargetType | null
+  targetId: string | null
   data: Record<string, unknown>
 }
 
@@ -174,4 +175,44 @@ export function buildUpdatedNotifications(
     activity.id,
     { changedFields }
   )
+}
+
+export const VERIFICATION_KIND_LABELS: Record<VerificationKind, string> = {
+  personal: '个人认证',
+  enterprise: '企业认证'
+}
+
+/** 认证审核通过 → 申请人（系统消息，无跳转对象）。 */
+export function buildVerificationApprovedNotification(input: {
+  userId: string
+  kind: VerificationKind
+}): NotificationDraft {
+  const label = VERIFICATION_KIND_LABELS[input.kind]
+  return {
+    userId: input.userId,
+    type: 'verification.approved',
+    title: `${label}已通过`,
+    body: `你提交的${label}已审核通过，认证信息将在你的个人主页展示。`,
+    targetType: null,
+    targetId: null,
+    data: { kind: input.kind }
+  }
+}
+
+/** 认证审核驳回 → 申请人（附原因，可修改后重提）。 */
+export function buildVerificationRejectedNotification(input: {
+  userId: string
+  kind: VerificationKind
+  rejectReason: string
+}): NotificationDraft {
+  const label = VERIFICATION_KIND_LABELS[input.kind]
+  return {
+    userId: input.userId,
+    type: 'verification.rejected',
+    title: `${label}未通过`,
+    body: `你提交的${label}未通过审核。原因：${input.rejectReason}。修改后可重新提交。`,
+    targetType: null,
+    targetId: null,
+    data: { kind: input.kind, rejectReason: input.rejectReason }
+  }
 }

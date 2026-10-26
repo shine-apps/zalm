@@ -15,6 +15,13 @@
       "when": 1792679244908,
       "tag": "0001_add_follows",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792990475454,
+      "tag": "0002_add_user_verification",
+      "breakpoints": true
     }
   ]
 }

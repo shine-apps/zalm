@@ -29,7 +29,8 @@ const PUBLIC_GET_PATTERNS = [
   /^\/api\/points\/feed$/,
   /^\/api\/users\/[^/]+$/,
   /^\/api\/users\/[^/]+\/points$/,
-  /^\/api\/users\/[^/]+\/registrations$/
+  /^\/api\/users\/[^/]+\/registrations$/,
+  /^\/api\/users\/[^/]+\/verification$/
 ]
 
 export function isPublicRequest(pathname: string, method: string): boolean {

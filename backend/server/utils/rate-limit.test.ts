@@ -47,6 +47,8 @@ describe('getRateLimitTier', () => {
     expect(getRateLimitTier('/api/activities/abc/check-in', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/admin/activities/abc/manual-check-in', 'POST')).toBe('sensitive')
     expect(getRateLimitTier('/api/activities/abc/check-in-code', 'GET')).toBe('sensitive')
+    expect(getRateLimitTier('/api/verification/ocr', 'POST')).toBe('sensitive')
+    expect(getRateLimitTier('/api/verification', 'POST')).toBe('sensitive')
   })
 
   it('does not misclassify sibling paths of sensitive endpoints', () => {
@@ -54,6 +56,8 @@ describe('getRateLimitTier', () => {
     expect(getRateLimitTier('/api/admin/points/ledger', 'GET')).toBe('global')
     expect(getRateLimitTier('/api/activities/abc/reviews', 'POST')).toBe('global')
     expect(getRateLimitTier('/api/share/wx-config', 'GET')).toBe('global')
+    expect(getRateLimitTier('/api/verification/ocr', 'GET')).toBe('global')
+    expect(getRateLimitTier('/api/verification/me', 'GET')).toBe('global')
   })
 
   it('falls back to global for regular API paths', () => {

@@ -77,3 +77,21 @@ export async function deleteCosObject(key: string): Promise<void> {
     throw err
   }
 }
+
+/** 拉取对象内容到内存（仅用于证件照等小文件做 OCR）；对象不存在抛 NOT_FOUND。 */
+export async function getCosObjectBuffer(key: string): Promise<Buffer> {
+  const cfg = getCosConfig()
+  try {
+    const data = await getCosClient().getObject({
+      Bucket: cfg.bucket,
+      Region: cfg.region,
+      Key: key
+    })
+    return data.Body as Buffer
+  } catch (err) {
+    if ((err as COS.CosSdkError).statusCode === 404) {
+      throw createApiError('NOT_FOUND', { message: '文件不存在或已删除' })
+    }
+    throw err
+  }
+}

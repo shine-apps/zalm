@@ -4,6 +4,8 @@ import {
   buildCheckedInNotifications,
   buildRegisteredNotifications,
   buildUpdatedNotifications,
+  buildVerificationApprovedNotification,
+  buildVerificationRejectedNotification,
   diffActivityChanges,
   type ChangeableActivity
 } from './notification-content'
@@ -153,5 +155,30 @@ describe('活动通知文案 builders', () => {
       'location'
     ])
     expect(multi[0]!.body).toContain('标题、活动时间、报名截止时间、地点')
+  })
+})
+
+describe('buildVerificationApprovedNotification', () => {
+  it('builds an approved draft with null target', () => {
+    expect(buildVerificationApprovedNotification({ userId: 'u1', kind: 'personal' })).toEqual({
+      userId: 'u1',
+      type: 'verification.approved',
+      title: '个人认证已通过',
+      body: '你提交的个人认证已审核通过，认证信息将在你的个人主页展示。',
+      targetType: null,
+      targetId: null,
+      data: { kind: 'personal' }
+    })
+  })
+})
+
+describe('buildVerificationRejectedNotification', () => {
+  it('includes the reject reason in body and data', () => {
+    const draft = buildVerificationRejectedNotification({ userId: 'u1', kind: 'enterprise', rejectReason: '执照模糊' })
+    expect(draft.type).toBe('verification.rejected')
+    expect(draft.title).toBe('企业认证未通过')
+    expect(draft.body).toContain('执照模糊')
+    expect(draft.targetType).toBeNull()
+    expect(draft.data).toEqual({ kind: 'enterprise', rejectReason: '执照模糊' })
   })
 })

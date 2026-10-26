@@ -2,8 +2,8 @@ import { http } from '@/http/alova'
 
 export type MediaType = 'image' | 'video' | 'audio' | 'file'
 
-/** 业务路径段白名单：activity=活动相册/封面，avatar=个人头像。 */
-export type MediaScope = 'activity' | 'avatar'
+/** 业务路径段白名单：activity=活动相册/封面，avatar=个人头像，verification=实名认证证件与相册。 */
+export type MediaScope = 'activity' | 'avatar' | 'verification'
 
 /** media_file.metadata jsonb 的结构（键均可缺省）。 */
 export interface MediaMetadata {

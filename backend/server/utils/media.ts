@@ -8,8 +8,8 @@ export type MediaType = 'image' | 'video' | 'audio' | 'file'
 
 export const MEDIA_TYPES = ['image', 'video', 'audio', 'file'] as const
 
-/** 业务路径段白名单：activity=活动相册/封面，avatar=个人头像。 */
-export const MEDIA_SCOPES = ['activity', 'avatar'] as const
+/** 业务路径段白名单：activity=活动相册/封面，avatar=个人头像，verification=实名认证证件与相册。 */
+export const MEDIA_SCOPES = ['activity', 'avatar', 'verification'] as const
 
 export type MediaScope = (typeof MEDIA_SCOPES)[number]
 

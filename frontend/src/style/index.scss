@@ -23,6 +23,28 @@ page {
   color: var(--c-ink);
 }
 
+/*
+ * wot-ui 输入框/多行输入框全局默认四周边框。
+ * 库默认无边框（仅卡片底色），在浅底表单中辨识度不足；
+ * 颜色只走主题变量（--c-line-strong），聚焦态用品牌主色；
+ * compact 变体（内联场景，无边距透明底）保持无边框。
+ */
+.wd-input,
+.wd-textarea {
+  border: 1px solid var(--c-line-strong);
+  border-radius: 8px;
+
+  &:focus-within {
+    border-color: var(--c-primary);
+  }
+
+  &.is-compact {
+    padding: 0;
+    background: transparent;
+    border: none;
+  }
+}
+
 /* #ifdef H5 */
 // 仅在 ≥1024px（桌面/大尺寸笔记本）时收窄页面，模拟移动端视口；
 // 平板（iPad mini/Air 等 768–1023px）和手机保持全宽不压缩

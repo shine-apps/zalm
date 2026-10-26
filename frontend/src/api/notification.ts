@@ -7,6 +7,8 @@ export type NotificationType
     | 'activity.checked_in'
     | 'activity.cancelled'
     | 'activity.updated'
+    | 'verification.approved'
+    | 'verification.rejected'
 
 /** 通知跳转对象类型。 */
 export type NotificationTargetType = 'activity'

@@ -311,13 +311,15 @@ export const shareEvent = pgTable(
 
 /**
  * 通知事件码：`域.事件` 点分命名。
- * 本期仅活动域 4 类；新增域时在此登记（不入 DB 枚举约束，值域由 TS + 入口校验守住）。
+ * 活动域 4 类 + 认证域 2 类；新增域时在此登记（不入 DB 枚举约束，值域由 TS + 入口校验守住）。
  */
 export const NOTIFICATION_TYPES = [
   'activity.registered',
   'activity.checked_in',
   'activity.cancelled',
-  'activity.updated'
+  'activity.updated',
+  'verification.approved',
+  'verification.rejected'
 ] as const
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
@@ -390,4 +392,73 @@ export const follow = pgTable(
 )
 
 // Better Auth 四张表
+// ===== 实名认证 =====
+
+/** 认证类型：personal=个人（身份证），enterprise=企业（营业执照）。 */
+export const VERIFICATION_KINDS = ['personal', 'enterprise'] as const
+export type VerificationKind = (typeof VERIFICATION_KINDS)[number]
+
+export const VERIFICATION_STATUSES = ['pending', 'approved', 'rejected'] as const
+export type VerificationStatus = (typeof VERIFICATION_STATUSES)[number]
+
+export interface PersonalVerificationPayload {
+  realName: string
+  idCardNumber: string
+}
+
+export interface EnterpriseVerificationPayload {
+  companyName: string
+  creditCode: string
+  legalPerson: string
+}
+
+export type VerificationPayload = PersonalVerificationPayload | EnterpriseVerificationPayload
+
+export interface ShowcaseMediaItem {
+  url: string
+  type: 'image' | 'video'
+}
+
+/**
+ * 用户实名认证申请：个人/企业两种可并存、独立审核。
+ * - payload 存敏感证件信息，仅本人与管理端可见，绝不进入公开视图；
+ * - ocrResult 存 OCR 预填快照，供管理员比对用户最终提交；
+ * - 驳回可重提（新插入一行），通过即锁定（同 kind 已有 approved 禁止再提交，见提交端点）。
+ */
+export const userVerification = pgTable(
+  'user_verification',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<VerificationKind>().notNull(),
+    status: text('status').$type<VerificationStatus>().notNull().default('pending'),
+    payload: jsonb('payload').$type<VerificationPayload>().notNull(),
+    /** 证件照（身份证人像面 / 营业执照），单张。 */
+    verificationImage: text('verification_image').notNull(),
+    /** 个人/公司展示相册（图片或视频，最多 9 个）。 */
+    showcaseMedia: jsonb('showcase_media').$type<ShowcaseMediaItem[]>().notNull().default([]),
+    /** 个人/公司介绍文字（最多 2000 字）。 */
+    introduction: text('introduction').notNull().default(''),
+    ocrResult: jsonb('ocr_result').$type<Record<string, unknown> | null>(),
+    reviewedBy: text('reviewed_by').references(() => user.id, { onDelete: 'restrict' }),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    rejectReason: text('reject_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date())
+  },
+  t => [
+    index('user_verification_user_idx').on(t.userId),
+    index('user_verification_status_created_idx').on(t.status, t.createdAt)
+  ]
+)
+
+export type UserVerification = typeof userVerification.$inferSelect
+
 export { account, session, user, verification } from './auth-schema'

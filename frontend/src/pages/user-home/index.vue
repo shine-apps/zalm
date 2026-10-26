@@ -6,6 +6,8 @@ import type { PointsOverview } from '@/api/points'
 import { getMyPoints } from '@/api/points'
 import type { PublicUserProfile } from '@/api/users'
 import { getUserPoints, getUserProfile, getUserRegistrations } from '@/api/users'
+import type { PublicVerificationView } from '@/api/verification'
+import { getUserVerifications } from '@/api/verification'
 import { resolveMediaUrl } from '@/api/profile'
 import { useShare } from '@/share/useShare'
 import { useAuthStore } from '@/store/auth'
@@ -138,6 +140,20 @@ async function loadPoints() {
   }
 }
 
+// ===== 实名认证（已通过认证的相册/介绍公开展示） =====
+const verifications = ref<PublicVerificationView[]>([])
+
+async function loadVerifications() {
+  if (!targetUserId.value)
+    return
+  try {
+    verifications.value = await getUserVerifications(targetUserId.value)
+  }
+  catch {
+    verifications.value = []
+  }
+}
+
 // ===== 活动列表（分页滚动加载） =====
 const PAGE_SIZE = 10
 const items = ref<MyRegistrationItem[]>([])
@@ -203,6 +219,7 @@ function openActivityDetail(id: string) {
 onShow(() => {
   void loadProfile()
   void loadPoints()
+  void loadVerifications()
   void reload()
 })
 
@@ -227,6 +244,26 @@ const roleBadge = computed(() => {
 const totalPoints = computed(() => pointsOverview.value?.total ?? 0)
 const activityPoints = computed(() => pointsOverview.value?.activityPoints ?? 0)
 const donationPoints = computed(() => pointsOverview.value?.donationPoints ?? 0)
+
+// 认证徽标：企业优先于个人
+const verifiedBadge = computed(() => {
+  if (verifications.value.length === 0)
+    return null
+  return verifications.value.some(v => v.kind === 'enterprise') ? '企业已认证' : '已认证'
+})
+
+// 有相册或介绍的认证才渲染展示模块
+const showcaseSections = computed(() =>
+  verifications.value.filter(v => v.showcaseMedia.length > 0 || v.introduction),
+)
+
+function imageUrlsOf(section: PublicVerificationView) {
+  return section.showcaseMedia.filter(m => m.type === 'image').map(m => m.url)
+}
+
+function previewImage(urls: string[], current: string) {
+  uni.previewImage({ urls, current })
+}
 
 const headerTitle = computed(() => (isOwnProfile.value ? '我的主页' : '个人主页'))
 
@@ -276,6 +313,12 @@ const {
                   :class="roleBadge.cls"
                 >
                   {{ roleBadge.text }}
+                </text>
+                <text
+                  v-if="verifiedBadge"
+                  class="text-primary-soft-text ml-2 rounded bg-primary-soft px-2 py-0.5 text-3"
+                >
+                  {{ verifiedBadge }}
                 </text>
               </view>
             </view>
@@ -333,6 +376,38 @@ const {
           <text class="text-3 text-muted leading-relaxed">
             积分可通过参与活动签到、物资/现金捐献获得。
           </text>
+        </view>
+      </view>
+
+      <!-- 认证展示：相册与介绍（仅已认证用户有数据） -->
+      <view
+        v-for="section in showcaseSections"
+        :key="section.kind"
+        class="mt-3 rounded-3 bg-card p-4 shadow-sm"
+      >
+        <view class="mb-3 text-4 text-ink font-medium">
+          {{ section.kind === 'personal' ? '个人展示' : (section.companyName || '企业展示') }}
+        </view>
+        <view v-if="section.showcaseMedia.length > 0" class="grid grid-cols-3 gap-2">
+          <template v-for="media in section.showcaseMedia" :key="media.url">
+            <image
+              v-if="media.type === 'image'"
+              :src="media.url"
+              mode="aspectFill"
+              class="h-24 w-full rounded"
+              @click="previewImage(imageUrlsOf(section), media.url)"
+            />
+            <video
+              v-else
+              :src="media.url"
+              :show-center-play-btn="true"
+              class="h-24 w-full rounded"
+              object-fit="cover"
+            />
+          </template>
+        </view>
+        <view v-if="section.introduction" class="mt-3 text-3.5 text-ink leading-relaxed">
+          {{ section.introduction }}
         </view>
       </view>
 

@@ -43,6 +43,10 @@ const envSchema = z.object({
   // CDN/自定义访问域名（不含结尾斜杠）；为空时使用 COS 默认域名
   TENCENT_COS_DOMAIN: z.string().optional(),
   TENCENT_COS_STS_TTL: z.coerce.number().int().positive().max(7200).default(1800),
+  // 腾讯云 OCR（实名认证证件识别）：复用 COS 永久密钥，region 独立
+  TENCENT_OCR_REGION: z.string().default('ap-guangzhou'),
+  // 开发开关：true 时返回固定识别结果，不调用腾讯云
+  OCR_MOCK: z.string().default('false').transform(v => v === 'true'),
   // 缓存：存储介质 memory（进程内，默认）| redis（共享缓存，需 CACHE_REDIS_URL）
   CACHE_DRIVER: z.enum(['memory', 'redis']).default('memory'),
   CACHE_REDIS_URL: z.string().optional(),
